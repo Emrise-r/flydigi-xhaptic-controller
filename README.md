@@ -12,6 +12,8 @@ and lets you control X-Haptics from the controller's back buttons:
 
 All hotkeys are configurable in `config.json`.
 
+![Tray menu with the Audio sources submenu](docs/images/tray-menu.png)
+
 **Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
 ([v1.0.1](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.1)). Get
 `HapticsGuard-v1.0.1.zip`, extract it anywhere and run `HapticsGuard.exe`.
