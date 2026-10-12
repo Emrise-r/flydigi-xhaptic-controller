@@ -30,6 +30,17 @@ using System.Text;
 using System.Threading;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using System.Reflection;
+
+// Version resource shown in Explorer > Properties > Details (also helps antivirus reputation).
+[assembly: AssemblyTitle("X-Haptics Guard")]
+[assembly: AssemblyDescription("Tray helper for the Flydigi xHaptics Engine: X-Haptics on/off, watchdog and audio source switching")]
+[assembly: AssemblyCompany("Emrise")]
+[assembly: AssemblyProduct("X-Haptics Guard")]
+[assembly: AssemblyCopyright("Copyright (c) 2026 Emrise. MIT License.")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
+[assembly: AssemblyInformationalVersion("1.0.1")]
 
 namespace FlydigiHapticsGuard
 {
@@ -1067,7 +1078,7 @@ namespace FlydigiHapticsGuard
 
         public void Run()
         {
-            Log.Write("guard started, switch " + (autoEnabled ? "ON" : "OFF"));
+            Log.Write("guard " + Application.ProductVersion + " started, switch " + (autoEnabled ? "ON" : "OFF"));
             while (!stopping)
             {
                 try

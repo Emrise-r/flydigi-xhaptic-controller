@@ -13,8 +13,8 @@ and lets you control X-Haptics from the controller's back buttons:
 All hotkeys are configurable in `config.json`.
 
 **Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
-([v1.0](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0)). Get
-`HapticsGuard-v1.0.zip`, extract it anywhere and run `HapticsGuard.exe`.
+([v1.0.1](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.1)). Get
+`HapticsGuard-v1.0.1.zip`, extract it anywhere and run `HapticsGuard.exe`.
 
 > **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
 > make the controller vibrate by itself. Install the engine with Flydigi Space Station first
@@ -159,7 +159,7 @@ audio. Use WASAPI *shared* if you want haptics from a music player.
 
 ## Build and install
 
-Prebuilt: download `HapticsGuard-v1.0.zip` from
+Prebuilt: download `HapticsGuard-v<version>.zip` from
 [Releases](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases). From source:
 
 ```bat
@@ -178,6 +178,7 @@ The folder is self-contained, so you can copy or clone it anywhere:
 |---|---|---|
 | `HapticsGuard.cs` | yes | source |
 | `build.cmd` | yes | build script |
+| `app.manifest` | yes | Windows manifest embedded in the exe (runs as the current user, never asks for admin) |
 | `config/config.default.json` | yes | default settings; copied to `config.json` on first run and by tray › *Reset config to defaults* |
 | `config.json` | no | your hotkeys and tuning (edited by you and by the *Audio sources* menu) |
 | `README.md`, `DIAGRAM.md` | yes | docs |
