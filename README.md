@@ -167,6 +167,12 @@ build.cmd              :: compiles HapticsGuard.exe with the csc.exe that ships 
 HapticsGuard.exe       :: run it; it sits in the tray (only one instance runs)
 ```
 
+**Antivirus.** The exe is small, unsigned, registers global hotkeys and lists processes, so a few
+antivirus engines flag it with generic machine-learning verdicts. For v1.0.1, Windows Defender found
+nothing and [VirusTotal](https://www.virustotal.com/gui/file/1f938d7d069fa5260da5018c7fa56245361fc50408141c5764ed333d68b7a042)
+shows 4/71 generic ML/PUA hits (Bkav, Elastic, SecureAge, Sophos), with the major engines clean. If you
+prefer, build the exe yourself from `HapticsGuard.cs` with `build.cmd`.
+
 The guard does **not** start with Windows by itself. Turn that on or off from the tray menu with
 **Start with Windows**, which adds or removes `X-Haptics Guard` under
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. A Startup-folder shortcut from older versions
