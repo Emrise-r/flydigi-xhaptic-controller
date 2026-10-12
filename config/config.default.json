@@ -1,0 +1,38 @@
+{
+  "hotkeys": {
+    "toggle": "Ctrl+Alt+R",
+    "switchSource": "Ctrl+Alt+P",
+    "rearmOnce": ""
+  },
+  "engine": {
+    "apiUrl": "http://127.0.0.1:18757",
+    "webOrigin": "https://space_station.flydigi.com",
+    "statusSocketPort": 18758,
+    "exePath": "C:\\Program Files\\Flydigi\\Engine\\xHaptics Engine.exe",
+    "gameListPath": "%APPDATA%\\Flydigi\\xHaptics Engine\\config\\xhaptics_game_status.json"
+  },
+  "ui": {
+    "url": "https://space_station.flydigi.com/#/controller/x-haptics",
+    "browser": ""
+  },
+  "watchdog": {
+    "pollMs": 1000,
+    "reconnectDelaySec": 4,
+    "deviceChangeDelaySec": 2,
+    "brokenPersistSec": 4,
+    "rearmGraceSec": 10,
+    "stallSec": 5,
+    "stallAudioSec": 3,
+    "audioPeakThreshold": 0.02,
+    "loudPeakThreshold": 0.05,
+    "engineSilentPeak": 0.0005,
+    "silentMismatchKick": 6,
+    "healthyResetSec": 30,
+    "maxIdleBounces": 2,
+    "webCheckDelaySec": 5,
+    "backoffSec": [5, 10, 20, 30, 60]
+  },
+  "sources": {
+    "exclude": []
+  }
+}

@@ -1,0 +1,9 @@
+# build output
+*.exe
+*.pdb
+
+# runtime state and log (created next to the exe)
+data/
+
+# personal settings; created from config/config.default.json on first run
+config.json
