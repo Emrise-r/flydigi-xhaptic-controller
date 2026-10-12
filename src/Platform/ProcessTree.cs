@@ -1,20 +1,31 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
-using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
     // Process tree, foreground window and executable paths (the engine's process-loopback includes child processes).
     static class ProcessTree
     {
+        // Runs `action` for each process and disposes all of them. A process that exits meanwhile (its
+        // properties then throw) is skipped.
+        public static void ForEach(Process[] processes, Action<Process> action)
+        {
+            foreach (var p in processes)
+            {
+                try { action(p); }
+                catch (InvalidOperationException) { }
+                catch (Win32Exception) { }
+                finally { p.Dispose(); }
+            }
+        }
+
+        const uint TH32CS_SNAPPROCESS = 0x2;
+        const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         struct PROCESSENTRY32
         {
@@ -29,7 +40,7 @@ namespace FlydigiHapticsGuard
         public static Dictionary<int, int> ParentMap()
         {
             var map = new Dictionary<int, int>();
-            IntPtr snap = CreateToolhelp32Snapshot(2 /* TH32CS_SNAPPROCESS */, 0);
+            IntPtr snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
             if (snap == IntPtr.Zero || snap == new IntPtr(-1)) return map;
             try
             {
@@ -82,7 +93,7 @@ namespace FlydigiHapticsGuard
         // Works for most processes, including ones Process.MainModule refuses (other bitness, elevated).
         public static string ImagePath(int pid)
         {
-            IntPtr h = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
+            IntPtr h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
             if (h == IntPtr.Zero) return null;
             try
             {

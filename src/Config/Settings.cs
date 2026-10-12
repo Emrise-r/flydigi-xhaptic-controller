@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
+using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Web.Script.Serialization;
-using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
@@ -167,16 +162,9 @@ namespace FlydigiHapticsGuard
                 LowBatteryPercent = Math.Max(0, I(root, "watchdog.lowBatteryPercent", LowBatteryPercent));
                 LogMaxFileKB = Math.Max(64, I(root, "log.maxFileKB", LogMaxFileKB));
                 var backoff = EngineClient.At(root, "watchdog.backoffSec") as object[];
-                if (backoff != null && backoff.Length > 0)
-                {
-                    var list = new List<int>();
-                    foreach (var b in backoff) list.Add(Convert.ToInt32(b));
-                    BackoffSec = list.ToArray();
-                }
-                var exclude = new List<string>();
-                var excludeArr = EngineClient.At(root, "sources.exclude") as object[];
-                if (excludeArr != null) foreach (var e in excludeArr) { string n = NormalizeProcessName(Convert.ToString(e)); if (n.Length > 0) exclude.Add(n); }
-                SourceExclude = exclude;
+                if (backoff != null && backoff.Length > 0) BackoffSec = backoff.Select(b => Convert.ToInt32(b)).ToArray();
+                var exclude = EngineClient.At(root, "sources.exclude") as object[] ?? new object[0];
+                SourceExclude = exclude.Select(e => NormalizeProcessName(Convert.ToString(e))).Where(n => n.Length > 0).ToList();
                 if (PollMs < 200) PollMs = 200;
                 return null;
             }
@@ -197,9 +185,7 @@ namespace FlydigiHapticsGuard
 
         public static bool IsExcluded(string processName)
         {
-            string n = NormalizeProcessName(processName);
-            foreach (var e in SourceExclude) if (string.Equals(e, n, StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
+            return SourceExclude.Contains(NormalizeProcessName(processName), StringComparer.OrdinalIgnoreCase);
         }
 
         // Rewrites only "sources.exclude" in config.json, keeping every other value.
@@ -209,9 +195,7 @@ namespace FlydigiHapticsGuard
             if (root == null) throw new InvalidDataException("config.json is not a JSON object");
             var sources = EngineClient.Obj(EngineClient.At(root, "sources"));
             if (sources == null) { sources = new Dictionary<string, object>(); root["sources"] = sources; }
-            var list = new List<object>();
-            foreach (var e in exclude) list.Add(e + ".exe");
-            sources["exclude"] = list.ToArray();
+            sources["exclude"] = exclude.Select(e => (object)(e + ".exe")).ToArray();
             var sb = new StringBuilder();
             WriteJson(sb, root, "");
             sb.AppendLine();
@@ -240,13 +224,10 @@ namespace FlydigiHapticsGuard
             }
             else if (a != null)
             {
-                bool scalars = true;
-                foreach (var x in a) if (x is Dictionary<string, object> || x is object[]) scalars = false;
+                bool scalars = !a.Any(x => x is Dictionary<string, object> || x is object[]);
                 if (scalars)
                 {
-                    var parts = new List<string>();
-                    foreach (var x in a) parts.Add(js.Serialize(x));
-                    sb.Append("[" + string.Join(", ", parts) + "]");
+                    sb.Append("[" + string.Join(", ", a.Select(x => js.Serialize(x))) + "]");
                     return;
                 }
                 sb.Append("[\n");

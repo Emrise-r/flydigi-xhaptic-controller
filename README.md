@@ -39,7 +39,8 @@ and lets you control X-Haptics from the controller's back buttons:
 - **Flydigi xHaptics Engine**, installed and running (its installer starts it with Windows). If it is
   missing or stopped, the guard says so when you press a hotkey, and the tray menu offers
   *Start xHaptics Engine*.
-- Windows 10/11 with .NET Framework 4.x (built in).
+- 64-bit Windows, because the xHaptics Engine is x64 only. Tested on Windows 11.
+- .NET Framework 4.5 or later. Windows 10 and 11 already include it (4.8), so there is nothing to install.
 
 ## Install
 

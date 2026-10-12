@@ -1,18 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
-    // ---------------------------------------------------------------- Start with Windows (tray toggle, off unless the user turns it on)
+    // Start with Windows (tray toggle, off unless the user turns it on)
     // Uses HKCU\...\Run. Older versions used a Startup-folder shortcut; it counts as "on" and is removed on the next toggle.
     static class AutoStart
     {

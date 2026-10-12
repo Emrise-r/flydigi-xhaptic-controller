@@ -1,13 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard

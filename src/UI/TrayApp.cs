@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
+using System.Linq;
 using System.Threading;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
@@ -17,7 +14,8 @@ namespace FlydigiHapticsGuard
         readonly NotifyIcon tray;
         readonly Guard guard;
         readonly HotkeyWindow hotkey;
-        readonly ToolStripMenuItem autoItem, sourceItem, rearmItem;
+        readonly ToolStripMenuItem autoItem;
+        readonly HotkeyBinding[] hotkeys;
         readonly System.Windows.Forms.Timer uiTimer;
         readonly SynchronizationContext ui;
 
@@ -41,13 +39,13 @@ namespace FlydigiHapticsGuard
             autoItem = new ToolStripMenuItem("", null, delegate { ToggleAuto(); });
             autoItem.Checked = guard.AutoEnabled;
             menu.Items.Add(autoItem);
-            sourceItem = new ToolStripMenuItem("", null, delegate { guard.RequestCycle(); });
+            var sourceItem = new ToolStripMenuItem("", null, delegate { guard.RequestCycle(); });
             menu.Items.Add(sourceItem);
             var sourcesMenu = new ToolStripMenuItem("Audio sources");
             sourcesMenu.DropDownItems.Add("(loading)");   // placeholder so the submenu arrow shows
             sourcesMenu.DropDownOpening += delegate { FillSourcesMenu(sourcesMenu); };
             menu.Items.Add(sourcesMenu);
-            rearmItem = new ToolStripMenuItem("", null, delegate { guard.RequestKick(); });
+            var rearmItem = new ToolStripMenuItem("", null, delegate { guard.RequestKick(); });
             menu.Items.Add(rearmItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Open X-Haptics settings", null, delegate { OpenUi(); });
@@ -89,6 +87,15 @@ namespace FlydigiHapticsGuard
                 Log.Write("config.json error: " + configError + " (using defaults)");
                 Notify("config.json error: " + configError + ". Using defaults. Fix it or use tray > Reset config to defaults.");
             }
+            hotkeys = new[]
+            {
+                new HotkeyBinding { Name = "toggle", Spec = () => Settings.HotkeyToggle, Action = ToggleAuto,
+                                    Item = autoItem, Label = "X-Haptics on + auto re-arm" },
+                new HotkeyBinding { Name = "switchSource", Spec = () => Settings.HotkeySwitchSource, Action = guard.RequestCycle,
+                                    Item = sourceItem, Label = "Switch audio source" },
+                new HotkeyBinding { Name = "rearmOnce", Spec = () => Settings.HotkeyRearmOnce, Action = guard.RequestKick,
+                                    Item = rearmItem, Label = "Re-arm X-Haptics once" },
+            };
             RegisterHotkeys();
 
             var t = new Thread(guard.Run) { IsBackground = true, Name = "guard" };
@@ -96,14 +103,10 @@ namespace FlydigiHapticsGuard
             t.Start();
 
             // "HapticsGuard.exe --toggle" / "--kick" / "--cycle" / "--reload" from another process
-            var reloadEvent = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ReloadEventName);
-            new Thread(delegate() { while (reloadEvent.WaitOne()) ui.Post(delegate { Reload(true); }, null); }) { IsBackground = true }.Start();
-            var cycleEvent = new EventWaitHandle(false, EventResetMode.AutoReset, Program.CycleEventName);
-            new Thread(delegate() { while (cycleEvent.WaitOne()) guard.RequestCycle(); }) { IsBackground = true }.Start();
-            var toggleEvent = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ToggleEventName);
-            new Thread(delegate() { while (toggleEvent.WaitOne()) ui.Post(delegate { ToggleAuto(); }, null); }) { IsBackground = true }.Start();
-            var kickEvent = new EventWaitHandle(false, EventResetMode.AutoReset, Program.KickEventName);
-            new Thread(delegate() { while (kickEvent.WaitOne()) guard.RequestKick(); }) { IsBackground = true }.Start();
+            ListenFor(Program.ReloadEventName, OnUiThread(delegate { Reload(true); }));
+            ListenFor(Program.ToggleEventName, OnUiThread(ToggleAuto));
+            ListenFor(Program.CycleEventName, guard.RequestCycle);
+            ListenFor(Program.KickEventName, guard.RequestKick);
 
             uiTimer = new System.Windows.Forms.Timer { Interval = 2000 };
             uiTimer.Tick += delegate
@@ -112,6 +115,18 @@ namespace FlydigiHapticsGuard
                 tray.Text = text.Length > 63 ? text.Substring(0, 63) : text;
             };
             uiTimer.Start();
+        }
+
+        // Runs `action` every time another process signals the named event.
+        static void ListenFor(string eventName, Action action)
+        {
+            var ev = new EventWaitHandle(false, EventResetMode.AutoReset, eventName);
+            new Thread(delegate() { while (ev.WaitOne()) action(); }) { IsBackground = true }.Start();
+        }
+
+        Action OnUiThread(Action action)
+        {
+            return delegate { ui.Post(delegate { action(); }, null); };
         }
 
         void ToggleAuto()
@@ -157,20 +172,29 @@ namespace FlydigiHapticsGuard
             catch (Exception ex) { Log.Write("cannot start engine: " + ex.Message); Notify("Cannot start xHaptics Engine: " + ex.Message); }
         }
 
+        // A config.json hotkey, what it does, and the tray item that shows it. Spec is read again on every reload.
+        class HotkeyBinding
+        {
+            public string Name, Label;
+            public Func<string> Spec;
+            public Action Action;
+            public ToolStripMenuItem Item;
+        }
+
         static string Shown(string hotkey) { return string.IsNullOrEmpty(hotkey) ? "" : " (" + hotkey + ")"; }
 
         void RegisterHotkeys()
         {
             hotkey.Clear();
             var errors = new List<string>();
-            string e;
-            if ((e = hotkey.Add(Settings.HotkeyToggle, ToggleAuto)) != null) errors.Add(e);
-            if ((e = hotkey.Add(Settings.HotkeySwitchSource, guard.RequestCycle)) != null) errors.Add(e);
-            if ((e = hotkey.Add(Settings.HotkeyRearmOnce, guard.RequestKick)) != null) errors.Add(e);
-            autoItem.Text = "X-Haptics on + auto re-arm" + Shown(Settings.HotkeyToggle);
-            sourceItem.Text = "Switch audio source" + Shown(Settings.HotkeySwitchSource);
-            rearmItem.Text = "Re-arm X-Haptics once" + Shown(Settings.HotkeyRearmOnce);
-            Log.Write("hotkeys: toggle=" + Settings.HotkeyToggle + " switchSource=" + Settings.HotkeySwitchSource + " rearmOnce=" + Settings.HotkeyRearmOnce);
+            foreach (var b in hotkeys)
+            {
+                string spec = b.Spec();
+                string error = hotkey.Add(spec, b.Action);
+                if (error != null) errors.Add(error);
+                b.Item.Text = b.Label + Shown(spec);
+            }
+            Log.Write("hotkeys: " + string.Join(" ", hotkeys.Select(b => b.Name + "=" + b.Spec())));
             foreach (var err in errors) Log.Write("hotkey warning: " + err);
             if (errors.Count > 0) Notify("Hotkey problem: " + string.Join("; ", errors));
         }

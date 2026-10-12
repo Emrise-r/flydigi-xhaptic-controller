@@ -1,14 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
-using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
@@ -28,22 +19,18 @@ namespace FlydigiHapticsGuard
 
         void ApplySwitch(bool on)
         {
-            var configs = EngineClient.Obj(EngineClient.At(engine.Get("/api/v1/xhaptics/configurations"), "configurations"));
-            if (configs == null) throw new EngineException(0, "no configurations");
+            var configs = engine.Configs();
+            if (configs.IsEmpty) throw new EngineException(0, "no configurations");
             if (!on)
             {
                 // Disable the running scope and global, otherwise the engine just falls back to global.
-                var st = engine.Get("/api/xhaptics/status");
-                string scope = EngineClient.Str(st, "session.scope");
+                string scope = engine.Status().Scope;
                 var targets = new List<string>();
                 if (!string.IsNullOrEmpty(scope)) targets.Add(scope);
-                if (!targets.Contains("global")) targets.Add("global");
+                if (!targets.Contains(EngineApi.GlobalScope)) targets.Add(EngineApi.GlobalScope);
                 var disabled = new List<string>();
                 foreach (var s in targets)
-                {
-                    var c = configs.ContainsKey(s) ? EngineClient.Obj(configs[s]) : null;
-                    if (c != null && EngineClient.Bool(c, "enabled")) { Toggle(s, c, false); disabled.Add(s); }
-                }
+                    if (configs.IsEnabled(s)) { engine.SetEnabled(configs, s, false); disabled.Add(s); }
                 AutoFlag.Save(false, disabled);
                 Log.Write("X-Haptics turned OFF (scopes: " + (disabled.Count > 0 ? string.Join(",", disabled) : "already off") + ")");
                 LastAction = "X-Haptics off";
@@ -52,13 +39,10 @@ namespace FlydigiHapticsGuard
             else
             {
                 var scopes = AutoFlag.LoadScopes();
-                if (scopes.Count == 0) scopes.Add("global");
+                if (scopes.Count == 0) scopes.Add(EngineApi.GlobalScope);
                 var enabled = new List<string>();
                 foreach (var s in scopes)
-                {
-                    var c = configs.ContainsKey(s) ? EngineClient.Obj(configs[s]) : null;
-                    if (c != null && !EngineClient.Bool(c, "enabled")) { Toggle(s, c, true); enabled.Add(s); }
-                }
+                    if (configs.Has(s) && !configs.IsEnabled(s)) { engine.SetEnabled(configs, s, true); enabled.Add(s); }
                 AutoFlag.Save(true, null);
                 // enabling starts a fresh pipeline; if it was already on, re-arm it instead
                 if (enabled.Count == 0) Kick("switch on", true, false);

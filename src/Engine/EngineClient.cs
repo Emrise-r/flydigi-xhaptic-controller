@@ -1,24 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Net;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 using System.Web.Script.Serialization;
-using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
-    // ---------------------------------------------------------------- Engine HTTP client
+    // Status = HTTP status code, 0 when the engine could not be reached.
     class EngineException : Exception
     {
         public int Status;
         public EngineException(int status, string msg) : base(msg) { Status = status; }
     }
 
+    // HTTP client for the engine's local API, authenticated like the Space Station web page.
     class EngineClient
     {
         readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
@@ -32,8 +28,8 @@ namespace FlydigiHapticsGuard
             req.Timeout = 4000;
             req.ReadWriteTimeout = 4000;
             req.Headers["Origin"] = Settings.WebOrigin;
-            req.Headers["X-Client-Name"] = "space-station-web";
-            req.Headers["X-Protocol-Version"] = "1";
+            req.Headers["X-Client-Name"] = EngineApi.ClientName;
+            req.Headers["X-Protocol-Version"] = EngineApi.ProtocolVersion;
             if (auth) req.Headers["Authorization"] = "Bearer " + token;
             if (body != null)
             {
@@ -60,7 +56,7 @@ namespace FlydigiHapticsGuard
 
         void Bootstrap()
         {
-            var v = Obj(json.DeserializeObject(Send("GET", "/api/engine/version", null, false)));
+            var v = Obj(json.DeserializeObject(Send("GET", EngineApi.Version, null, false)));
             token = Str(v, "accessToken");
             if (string.IsNullOrEmpty(token)) throw new EngineException(0, "bootstrap returned no access token");
         }
@@ -90,6 +86,46 @@ namespace FlydigiHapticsGuard
         public Dictionary<string, object> Post(string path, object body)
         {
             return Obj(json.DeserializeObject(Call("POST", path, json.Serialize(body))));
+        }
+
+        // ---- typed calls
+
+        public XHapticsStatus Status()
+        {
+            return XHapticsStatus.Parse(Get(EngineApi.Status));
+        }
+
+        public XHapticsConfigs Configs()
+        {
+            return XHapticsConfigs.Parse(Get(EngineApi.Configurations));
+        }
+
+        // Only for user-triggered calls: the engine rescans its games and drops to Mix for ~2 s.
+        public List<XHapticsGame> Games()
+        {
+            return XHapticsGame.ParseList(At(Get(EngineApi.Games), "games"));
+        }
+
+        // Adds an app to the engine's game list; returns its game id.
+        public string AddCustomGame(string displayName, string processPath)
+        {
+            var body = new Dictionary<string, object>();
+            body["displayName"] = displayName;
+            body["processPath"] = processPath;
+            return Str(Post(EngineApi.CustomGames, body), "game.gameId");
+        }
+
+        // PATCH one profile's enabled flag; retried once when another client changed the revision (409).
+        public void SetEnabled(XHapticsConfigs configs, string scope, bool enabled)
+        {
+            var profile = configs.Find(scope);
+            if (profile == null) return;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                long revision = Configs().Revision;
+                try { Patch(EngineApi.Configuration(scope), XHapticsConfigs.PatchBody(profile, enabled, revision)); return; }
+                catch (EngineException ex) { if (ex.Status != 409 || attempt == 1) throw; }
+            }
         }
 
         // ---- tiny JSON helpers

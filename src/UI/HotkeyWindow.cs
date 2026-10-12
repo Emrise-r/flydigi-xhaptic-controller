@@ -1,23 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Net;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
-    // ---------------------------------------------------------------- Tray + hotkey
+    // Global hotkeys (RegisterHotKey) delivered to a hidden message window
     class HotkeyWindow : NativeWindow, IDisposable
     {
         [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr hWnd, int id, uint mods, uint vk);
         [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-        const int WM_HOTKEY = 0x0312; const uint MOD_ALT = 1, MOD_CONTROL = 2, MOD_SHIFT = 4, MOD_WIN = 8, MOD_NOREPEAT = 0x4000;
+        const int WM_HOTKEY = 0x0312; const uint MOD_NOREPEAT = 0x4000;
+        internal const uint MOD_ALT = 1, MOD_CONTROL = 2, MOD_SHIFT = 4, MOD_WIN = 8;
         readonly List<Action> actions = new List<Action>();
         public HotkeyWindow() { CreateHandle(new CreateParams()); }
 
@@ -38,7 +32,8 @@ namespace FlydigiHapticsGuard
             actions.Clear();
         }
 
-        static bool TryParse(string spec, out uint mods, out Keys key)
+        // "Ctrl+Alt+R" -> modifiers + key; false for unknown names or a spec without a key.
+        internal static bool TryParse(string spec, out uint mods, out Keys key)
         {
             mods = 0; key = Keys.None;
             foreach (var raw in spec.Split('+'))

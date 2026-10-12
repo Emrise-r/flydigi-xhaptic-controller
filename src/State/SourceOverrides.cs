@@ -1,18 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
-using System.Windows.Forms;
+using System.Linq;
 
 namespace FlydigiHapticsGuard
 {
-    // ---------------------------------------------------------------- Audio source overrides (scope -> original enabled flag)
+    // Audio source overrides (data\sources.txt): scope -> original enabled flag
     static class SourceOverrides
     {
         static readonly string FilePath = Path.Combine(Log.Dir, "sources.txt");
@@ -36,9 +29,7 @@ namespace FlydigiHapticsGuard
             try
             {
                 Directory.CreateDirectory(Log.Dir);
-                var lines = new List<string>();
-                foreach (var kv in d) lines.Add(kv.Key + "=" + (kv.Value ? "true" : "false"));
-                File.WriteAllLines(FilePath, lines.ToArray());
+                File.WriteAllLines(FilePath, d.Select(kv => kv.Key + "=" + (kv.Value ? "true" : "false")));
             }
             catch (Exception ex) { Log.Write("cannot save sources.txt: " + ex.Message); }
         }

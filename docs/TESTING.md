@@ -1,8 +1,9 @@
 # Testing X-Haptics Guard
 
-Manual test cases and what was observed while building the guard. They need real hardware, so there is
-no automated suite. Every case can be checked from the tray menu status lines and `data\guard.log`
-(tray › *View log*).
+Manual test cases and what was observed while building the guard. They need real hardware; the logic
+that does not (status parsing, config, hotkeys, process tree, balloon texts, watchdog rules, state files, log rotation)
+is covered by the unit tests: run `test.cmd` (see [DEVELOPMENT.md](DEVELOPMENT.md#unit-tests)). Every
+manual case can be checked from the tray menu status lines and `data\guard.log` (tray › *View log*).
 
 **Test setup:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition with its charging dock, xHaptics Engine
 5.0.1.6, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep

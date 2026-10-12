@@ -1,14 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
-using System.Windows.Forms;
+using System.Linq;
+using System.Net.NetworkInformation;
 
 namespace FlydigiHapticsGuard
 {
@@ -18,11 +12,10 @@ namespace FlydigiHapticsGuard
         {
             try
             {
-                foreach (var c in System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections())
-                    if (c.State == System.Net.NetworkInformation.TcpState.Established && c.RemoteEndPoint.Port == Settings.WebUiPort) return true;
+                return IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections()
+                    .Any(c => c.State == TcpState.Established && c.RemoteEndPoint.Port == Settings.WebUiPort);
             }
-            catch { }
-            return false;
+            catch { return false; }
         }
 
         // ---- engine availability (only reported when the user triggers something; never at startup)
@@ -32,9 +25,8 @@ namespace FlydigiHapticsGuard
         public static EngineAvailability EngineStatus()
         {
             if (!File.Exists(Settings.EngineExePath)) return EngineAvailability.NotInstalled;
-            var procs = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Settings.EngineExePath));
-            bool running = procs.Length > 0;
-            foreach (var p in procs) p.Dispose();
+            bool running = false;
+            ProcessTree.ForEach(Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Settings.EngineExePath)), p => running = true);
             return running ? EngineAvailability.Installed : EngineAvailability.NotRunning;
         }
 

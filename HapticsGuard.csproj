@@ -8,7 +8,8 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>FlydigiHapticsGuard</RootNamespace>
     <AssemblyName>HapticsGuard</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <!-- 4.5: EventWaitHandle.TryOpenExisting and the iterator code the compiler emits need it -->
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <LangVersion>5</LangVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <CodePage>65001</CodePage>

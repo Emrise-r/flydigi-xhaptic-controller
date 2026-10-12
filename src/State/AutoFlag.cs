@@ -1,18 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Web.Script.Serialization;
-using System.Windows.Forms;
+using System.Linq;
 
 namespace FlydigiHapticsGuard
 {
-    // ---------------------------------------------------------------- Persistent master switch
+    // Master switch state (data\auto-mode.txt): on/off + the profiles it disabled
     // Line 1: "on"/"off". Line 2: the X-Haptics scopes the guard disabled, so "on" restores exactly those.
     static class AutoFlag
     {
@@ -31,11 +24,8 @@ namespace FlydigiHapticsGuard
         public static List<string> LoadScopes()
         {
             var l = Lines();
-            var scopes = new List<string>();
-            if (l.Length > 1)
-                foreach (var s in l[1].Split(','))
-                    if (s.Trim().Length > 0) scopes.Add(s.Trim());
-            return scopes;
+            if (l.Length < 2) return new List<string>();
+            return l[1].Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
         }
         public static void Save(bool on, IEnumerable<string> disabledScopes)
         {

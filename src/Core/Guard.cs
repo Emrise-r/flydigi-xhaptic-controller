@@ -1,18 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace FlydigiHapticsGuard
 {
-    // ---------------------------------------------------------------- Watchdog
     // Everything engine-related runs on this one worker thread; the UI only sets flags.
     partial class Guard
     {
@@ -22,7 +14,7 @@ namespace FlydigiHapticsGuard
 
         // monitor state (reset whenever AUTO is switched on)
         bool engineReachable = true, hidConnected, initialised;
-        string defaultDeviceId, activeScope = "global";
+        string defaultDeviceId, activeScope = EngineApi.GlobalScope;
         DateTime? pendingKickAt; string pendingReason;
         DateTime brokenSince, healthySince, nextKickAllowed, seqChangedAt, deadPidSince, lastKickAt, lastBalloon;
         DateTime? webCheckAt;
@@ -40,15 +32,16 @@ namespace FlydigiHapticsGuard
         }
 
 
+        // a re-arm is disable -> ToggleGapMs -> enable
+        const int ToggleGapMs = 600;
+        // the engine only binds a game/app profile that is enabled while it sits on Mix, so a source switch
+        // disables the running profiles and waits this long before enabling the target
+        const int BindOnMixDelayMs = 1200;
+        // after a source switch, check which process the engine actually captures
+        const int VerifyBindingAfterSec = 4;
+
         readonly Queue<Action> work = new Queue<Action>();
         void Enqueue(Action a) { lock (work) work.Enqueue(a); }
-
-
-        Dictionary<string, object> Configs()
-        {
-            return EngineClient.Obj(EngineClient.At(engine.Get("/api/v1/xhaptics/configurations"), "configurations"));
-        }
-
 
         public void Stop() { stopping = true; }
 
@@ -128,19 +121,33 @@ namespace FlydigiHapticsGuard
             notify(message);
         }
 
-        void Toggle(string scope, Dictionary<string, object> c, bool enabled)
+        // Switches a profile for source switching / following. Its original flag is remembered in `originals`
+        // (saved to sources.txt) and put back once its process has exited.
+        void SwitchProfile(XHapticsConfigs configs, Dictionary<string, bool> originals, string scope, bool enabled)
         {
-            for (int attempt = 0; attempt < 2; attempt++)
-            {
-                long rev = EngineClient.Long(engine.Get("/api/v1/xhaptics/configurations"), "revision");
-                var body = new Dictionary<string, object>();
-                body["expectedRevision"] = rev;
-                body["enabled"] = enabled;
-                body["selectedBackend"] = EngineClient.Str(c, "selectedBackend") ?? "realtime-audio";
-                body["ui"] = EngineClient.At(c, "ui") ?? new Dictionary<string, object>();
-                try { engine.Patch("/api/v1/xhaptics/configurations/" + Uri.EscapeDataString(scope), body); return; }
-                catch (EngineException ex) { if (ex.Status != 409 || attempt == 1) throw; }
-            }
+            if (!configs.Has(scope)) return;
+            bool have = configs.IsEnabled(scope);
+            if (!originals.ContainsKey(scope)) originals[scope] = have;
+            if (have != enabled) engine.SetEnabled(configs, scope, enabled);
+        }
+
+        // Registers an app as a custom game and makes sure its profile is off, so the engine keeps capturing
+        // Mix until the guard selects it. Returns the game id.
+        string RegisterCustomGame(string name, string path)
+        {
+            string id = engine.AddCustomGame(name, path);
+            var configs = engine.Configs();
+            if (configs.IsEnabled(id)) engine.SetEnabled(configs, id, false);
+            lastKickAt = DateTime.Now;
+            Log.Write("registered " + path + " as custom game " + id + " (disabled)");
+            return id;
+        }
+
+        // The engine rebuilds its capture after any profile change: don't judge it for a while.
+        void ResetAfterSourceChange()
+        {
+            lastKickAt = DateTime.Now;
+            brokenSince = DateTime.MaxValue; deadPidSince = DateTime.MaxValue; silentMismatch = 0;
         }
     }
 }
