@@ -47,6 +47,8 @@ namespace FlydigiHapticsGuard
         public static int FollowReturnSilenceSec = 15;     // child silent this long -> back to the parent
         public static int ControllerNotifyDelaySec = 5;    // a controller state must last this long before a balloon (USB <-> wireless hand-overs)
         public static int LowBatteryPercent = 10;          // one balloon when the reported battery drops to this (0 = off)
+        // log
+        public static int LogMaxFileKB = 5120;             // guard.log -> guard.log.old above this; both files ~2x
         public static int[] BackoffSec = { 5, 10, 20, 30, 60 };
         // audio sources: process names (without .exe) never picked by the switch-source cycle
         public static List<string> SourceExclude = new List<string>();
@@ -90,6 +92,9 @@ namespace FlydigiHapticsGuard
     ""controllerNotifyDelaySec"": 5,
     ""lowBatteryPercent"": 10,
     ""backoffSec"": [5, 10, 20, 30, 60]
+  },
+  ""log"": {
+    ""maxFileKB"": 5120
   },
   ""sources"": {
     ""exclude"": []
@@ -160,6 +165,7 @@ namespace FlydigiHapticsGuard
                 FollowReturnSilenceSec = Math.Max(3, I(root, "watchdog.followReturnSilenceSec", FollowReturnSilenceSec));
                 ControllerNotifyDelaySec = Math.Max(0, I(root, "watchdog.controllerNotifyDelaySec", ControllerNotifyDelaySec));
                 LowBatteryPercent = Math.Max(0, I(root, "watchdog.lowBatteryPercent", LowBatteryPercent));
+                LogMaxFileKB = Math.Max(64, I(root, "log.maxFileKB", LogMaxFileKB));
                 var backoff = EngineClient.At(root, "watchdog.backoffSec") as object[];
                 if (backoff != null && backoff.Length > 0)
                 {

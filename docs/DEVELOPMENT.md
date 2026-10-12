@@ -49,7 +49,7 @@ The defaults in `Settings.DefaultConfig` and `config/config.default.json` must s
 | `config.json` | no | user settings |
 | `data\auto-mode.txt` | no | master switch state + profiles it disabled |
 | `data\sources.txt` | no | original profile flags changed by source switching |
-| `data\guard.log` | no | log (rotated at 1 MB) |
+| `data\guard.log`, `data\guard.log.old` | no | log, rotated at `log.maxFileKB` (5 MB, so ~10 MB for both) |
 
 ## Release checklist
 

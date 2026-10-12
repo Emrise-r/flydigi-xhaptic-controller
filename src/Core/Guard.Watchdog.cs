@@ -14,6 +14,10 @@ namespace FlydigiHapticsGuard
 {
     partial class Guard
     {
+        // set while the default output device is held by an exclusive-mode / ASIO player
+        bool exclusiveHold;
+        DateTime nextExclusiveProbe = DateTime.MinValue;
+
         void CheckWebHold()
         {
             var st = engine.Get("/api/xhaptics/status");
@@ -100,6 +104,30 @@ namespace FlydigiHapticsGuard
                           (hasError || ((!capRunning || !outRunning) && !(idle && (webAttached || idleBounces >= Settings.MaxIdleBounces))));
             if (broken) { if (brokenSince == DateTime.MaxValue) brokenSince = now; }
             else brokenSince = DateTime.MaxValue;
+
+            // 3b) the output device is held by an exclusive-mode / ASIO player (TIDAL "Exclusive Mode",
+            // foobar2000 WASAPI exclusive...): re-arming is useless until it lets go, so wait, then re-arm once.
+            if ((broken || exclusiveHold) && now >= nextExclusiveProbe)
+            {
+                nextExclusiveProbe = now.AddSeconds(2);
+                bool? inUse = SystemAudio.DefaultDeviceInExclusiveUse();
+                if (inUse == true && !exclusiveHold)
+                {
+                    exclusiveHold = true;
+                    Log.Write("output device is in exclusive use by another app (" + Trim(capErr) + "); waiting for it to be released");
+                    Notify("Another app is using the audio device in exclusive mode (e.g. TIDAL Exclusive Mode, foobar2000 WASAPI exclusive/ASIO). " +
+                           "Haptics resume when it releases the device.", true);
+                }
+                else if (inUse == false && exclusiveHold)
+                {
+                    exclusiveHold = false;
+                    Log.Write("output device released by the exclusive-mode app -> re-arm");
+                    backoffIndex = 0; nextKickAllowed = DateTime.MinValue;
+                    Kick("output device released by an exclusive-mode app", false);
+                    return;
+                }
+            }
+            if (exclusiveHold) brokenSince = DateTime.MaxValue;   // no futile re-arms while the device is held
             if (idle && !broken && hid && !loggedIdleHold)
             {
                 loggedIdleHold = true;

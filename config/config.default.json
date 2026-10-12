@@ -37,6 +37,9 @@
     "lowBatteryPercent": 10,
     "backoffSec": [5, 10, 20, 30, 60]
   },
+  "log": {
+    "maxFileKB": 5120
+  },
   "sources": {
     "exclude": []
   }

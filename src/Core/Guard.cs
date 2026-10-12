@@ -60,6 +60,7 @@ namespace FlydigiHapticsGuard
             healthySince = now; seqChangedAt = now; nextKickAllowed = DateTime.MinValue; lastKickAt = DateTime.MinValue;
             lastSeq = -1; audioSecondsWhileStalled = 0; silentMismatch = 0; backoffIndex = 0; idleBounces = 0;
             lastKickWasIdle = false; loggedIdleHold = false;
+            exclusiveHold = false; nextExclusiveProbe = DateTime.MinValue;
             ClearFollow();
         }
 

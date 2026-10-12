@@ -13,6 +13,8 @@ using System.Windows.Forms;
 namespace FlydigiHapticsGuard
 {
     // ---------------------------------------------------------------- Logging
+    // guard.log is rotated to guard.log.old when it exceeds log.maxFileKB (default 5 MB), so the two files
+    // together never take more than about twice that.
     static class Log
     {
         static readonly object gate = new object();
@@ -26,7 +28,7 @@ namespace FlydigiHapticsGuard
                 {
                     Directory.CreateDirectory(Dir);
                     var fi = new FileInfo(FilePath);
-                    if (fi.Exists && fi.Length > 1024 * 1024) { File.Copy(FilePath, FilePath + ".old", true); File.Delete(FilePath); }
+                    if (fi.Exists && fi.Length > (long)Settings.LogMaxFileKB * 1024) { File.Copy(FilePath, FilePath + ".old", true); File.Delete(FilePath); }
                     File.AppendAllText(FilePath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + msg + Environment.NewLine, Encoding.UTF8);
                 }
                 catch { }

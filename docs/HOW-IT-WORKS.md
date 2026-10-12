@@ -46,6 +46,22 @@ Re-arms that the engine undoes straight away are retried at most `maxIdleBounces
 Audio-level checks and child-process scanning are skipped while the controller is not connected or its
 haptics are asleep.
 
+### Exclusive mode and ASIO
+
+The engine captures with WASAPI loopback, i.e. the Windows mixer output of the default device (Mix) or
+of one process. WASAPI-exclusive, ASIO and kernel-streaming output (TIDAL *Exclusive Mode*, foobar2000
+*WASAPI (exclusive)* / *ASIO* devices…) bypass the mixer, so the capture is silent and the device can
+be locked for other apps. Nothing in the guard can change that.
+
+The engine's capture then fails (`GetNextPacketSize failed: HRESULT 0x88890004`
+AUDCLNT_E_DEVICE_INVALIDATED, later `IAudioClient::Initialize(loopback) failed: HRESULT 0x8889000a`
+AUDCLNT_E_DEVICE_IN_USE) and stays Idle. When the "stopped / error" rule fires, the guard first probes the
+default playback device by opening a shared stream (never started) and closing it:
+
+- `AUDCLNT_E_DEVICE_IN_USE` → the device is held: no re-arm, `Source: audio device in exclusive use…`,
+  one balloon, probe again every 2 s;
+- the probe succeeds again → re-arm once (back-off reset), so haptics come back ~2 s after release.
+
 ### Delays
 
 | Event | Waits before re-arming |
@@ -126,7 +142,8 @@ change once the state has lasted `controllerNotifyDelaySec`:
 ## Files and locations
 
 `config.json` and `data\` (log, `auto-mode.txt`, `sources.txt`) live next to the exe when that folder is
-writable, otherwise in `%LOCALAPPDATA%\FlydigiHapticsGuard\`. The shipped defaults are read from
+writable, otherwise in `%LOCALAPPDATA%\FlydigiHapticsGuard\`. The log rotates to `guard.log.old` at
+`log.maxFileKB` (5 MB), so both files stay under about 10 MB. The shipped defaults are read from
 `config\config.default.json` next to the exe, or from the copy built into the exe.
 
 *Start with Windows* writes `X-Haptics Guard` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.

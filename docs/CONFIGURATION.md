@@ -23,6 +23,9 @@ restores it and keeps the old file as `data\config.backup.json`.
     "browser": ""
   },
   "watchdog": { "...": "see below" },
+  "log": {
+    "maxFileKB": 5120
+  },
   "sources": {
     "exclude": []
   }
@@ -50,6 +53,12 @@ restores it and keeps the old file as `data\config.backup.json`.
 - **url**: the page *Open X-Haptics settings* opens.
 - **browser**: empty = Chrome app window if Chrome is installed, otherwise the default browser; or a full
   path to a browser exe.
+
+## log
+
+- **maxFileKB** (default 5120 = 5 MB, minimum 64): when `data\guard.log` grows past this, it becomes
+  `guard.log.old` (replacing the previous one) and a new `guard.log` starts, so the two files together
+  stay under about twice this value (10 MB by default). Normal use writes roughly 0.1–0.5 MB a month.
 
 ## sources
 

@@ -31,6 +31,8 @@ is open it holds the controller and X-Haptics is paused.
 | 2.2 | Open the Space Station mapping page | `engine idle while Space Station page is attached -> not interfering`; no re-arm loop |
 | 2.3 | Re-arm once (tray) with the page open | Balloon *The Space Station page is holding the controller…* |
 | 2.4 | Select a game as the source, then close the game | `game exited but the engine is still bound to its process`, re-arm, `Source:` back to Mix |
+| 2.5 | Play in TIDAL with *Exclusive Mode* on (or foobar2000 *WASAPI (exclusive)* / *ASIO*) to the default DAC | One balloon *Another app is using the audio device in exclusive mode…*; log `output device is in exclusive use by another app (…)`; `Source: audio device in exclusive use…`; no re-arm attempts |
+| 2.6 | Stop / pause it, or turn *Exclusive Mode* off | ~2 s later `output device released by the exclusive-mode app -> re-arm`, `RE-ARMED …`; haptics back after a controller button press |
 
 ## 3. Audio sources
 
@@ -120,6 +122,7 @@ Wait about 10 s per step (state must last `controllerNotifyDelaySec`, plus the e
 | v1.0 (no version resource / manifest) | clean | 12/75, heuristic and ML verdicts incl. Kaspersky `VHO:Backdoor.MSIL.Convagent.gen`, McAfee, CrowdStrike |
 | v1.0.1 (version resource + `asInvoker` manifest) | clean | [4/71](https://www.virustotal.com/gui/file/1f938d7d069fa5260da5018c7fa56245361fc50408141c5764ed333d68b7a042): Bkav, Elastic, SecureAge APEX, Sophos (generic ML/PUA) |
 | 1.0.2 test build | clean | 5/70: the same four plus Kingsoft |
+| v1.0.3 | clean | [4/67](https://www.virustotal.com/gui/file/b49af9453331bfcc9469d32d8d78d635f858b9c6e7d6fb1ee01c7501e5daa37c): Bkav, Elastic, SecureAge APEX, Trapmine (generic ML); major engines clean |
 | v1.0.2 (modular sources) | clean | [5/69](https://www.virustotal.com/gui/file/23563875530c5f8794c28058c487a36a349a22ec7aab574d766ec6477e70b289): Bkav, Elastic, SecureAge APEX, Sophos, Trapmine (generic ML/PUA); Microsoft, Kaspersky, ESET, BitDefender, Avast, Malwarebytes, Symantec, McAfee, CrowdStrike clean |
 
 No engine names a malware family; the hits are generic ML/heuristic verdicts typical for small unsigned

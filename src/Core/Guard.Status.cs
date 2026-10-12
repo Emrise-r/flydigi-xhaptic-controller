@@ -78,7 +78,8 @@ namespace FlydigiHapticsGuard
             string scope = EngineClient.Str(st, "session.scope");
             string text;
             if (!autoEnabled && state != "Running") text = "X-Haptics off";
-            else if (state != "Running") text = WebUiAttached() ? "paused (Space Station page is open)"
+            else if (state != "Running") text = exclusiveHold ? "audio device in exclusive use by another app (exclusive/ASIO player): haptics resume when it is released"
+                                                : WebUiAttached() ? "paused (Space Station page is open)"
                                                 : TurnedOffElsewhere() ? "X-Haptics off (turned off in Space Station)" + TurnOnHint()
                                                 : "X-Haptics idle";
             else if (src == "process") text = GameName(scope) + " (PID " + pid + ")";

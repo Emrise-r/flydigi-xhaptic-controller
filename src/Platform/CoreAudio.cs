@@ -147,11 +147,55 @@ namespace FlydigiHapticsGuard
         [PreserveSig] int GetPeakValue(out float peak);
     }
 
+    [ComImport, Guid("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IAudioClient
+    {
+        [PreserveSig] int Initialize(int shareMode, uint streamFlags, long bufferDuration, long periodicity, IntPtr format, IntPtr audioSessionGuid);
+        [PreserveSig] int GetBufferSize(out uint frames);
+        [PreserveSig] int GetStreamLatency(out long latency);
+        [PreserveSig] int GetCurrentPadding(out uint frames);
+        [PreserveSig] int IsFormatSupported(int shareMode, IntPtr format, out IntPtr closestMatch);
+        [PreserveSig] int GetMixFormat(out IntPtr format);
+    }
+
     static class SystemAudio
     {
         const int eRender = 0, eConsole = 0, CLSCTX_ALL = 23;
 
         // Returns false when there is no default playback device.
+        const int AUDCLNT_E_DEVICE_IN_USE = unchecked((int)0x8889000A);
+
+        // Is the default playback device held by another app in exclusive mode (WASAPI exclusive / ASIO
+        // players such as TIDAL "Exclusive Mode")? Probes by opening a shared stream (never started) and
+        // closing it again. Returns null when it cannot tell.
+        public static bool? DefaultDeviceInExclusiveUse()
+        {
+            IMMDeviceEnumerator en = null; IMMDevice dev = null; object clientObj = null; IntPtr format = IntPtr.Zero;
+            try
+            {
+                en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+                if (en.GetDefaultAudioEndpoint(eRender, eConsole, out dev) != 0 || dev == null) return null;
+                Guid iid = typeof(IAudioClient).GUID;
+                if (dev.Activate(ref iid, CLSCTX_ALL, IntPtr.Zero, out clientObj) != 0 || clientObj == null) return null;
+                var client = (IAudioClient)clientObj;
+                int hr = client.GetMixFormat(out format);
+                if (hr == AUDCLNT_E_DEVICE_IN_USE) return true;
+                if (hr != 0) return null;
+                hr = client.Initialize(0 /* shared */, 0, 10000000 /* 1 s */, 0, format, IntPtr.Zero);
+                if (hr == 0) return false;
+                if (hr == AUDCLNT_E_DEVICE_IN_USE) return true;
+                return null;
+            }
+            catch { return null; }
+            finally
+            {
+                if (format != IntPtr.Zero) Marshal.FreeCoTaskMem(format);
+                if (clientObj != null) Marshal.ReleaseComObject(clientObj);
+                if (dev != null) Marshal.ReleaseComObject(dev);
+                if (en != null) Marshal.ReleaseComObject(en);
+            }
+        }
+
         public static bool Read(out string deviceId, out float peak)
         {
             deviceId = null; peak = 0;

@@ -13,8 +13,8 @@ and lets you control X-Haptics from the controller's back buttons:
 ![Tray menu with the Audio sources submenu](docs/images/tray-menu.png)
 
 **Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
-([v1.0.2](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.2)). Get
-`HapticsGuard-v1.0.2.zip`, extract it anywhere and run `HapticsGuard.exe`.
+([v1.0.3](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.3)). Get
+`HapticsGuard-v1.0.3.zip`, extract it anywhere and run `HapticsGuard.exe`.
 
 > **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
 > make the controller vibrate by itself. Install the engine with Flydigi Space Station first.
@@ -58,9 +58,9 @@ To build it yourself: run `build.cmd` (uses the C# compiler that ships with Wind
 [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 **Antivirus:** the exe is small, unsigned, registers global hotkeys and lists processes, so a few engines
-flag it with generic machine-learning verdicts (v1.0.2: Defender clean,
-[VirusTotal](https://www.virustotal.com/gui/file/23563875530c5f8794c28058c487a36a349a22ec7aab574d766ec6477e70b289)
-5/69, major engines clean). Build it from source if you prefer.
+flag it with generic machine-learning verdicts (v1.0.3: Defender clean,
+[VirusTotal](https://www.virustotal.com/gui/file/b49af9453331bfcc9469d32d8d78d635f858b9c6e7d6fb1ee01c7501e5daa37c)
+4/67, major engines clean). Build it from source if you prefer.
 
 ---
 
@@ -142,11 +142,34 @@ Command line: `HapticsGuard.exe --toggle | --cycle | --kick | --reload`.
 - **Turned off in Space Station?** The guard leaves it off and says so; press the master switch twice.
 - **Browsers** (Chrome, Edge…) only work as a per-app source while their window is focused; use Mix.
 - **Games with embedded browsers** (BH3 web events): the guard follows the child process automatically.
-- **WASAPI exclusive** players bypass Windows' mixer; nothing can capture them. Use *shared* mode.
+- **Exclusive / bit-perfect players**: see the warning below.
 - **Controller off / dock / cable**: the guard shows one balloon per state change, e.g.
   *Controller disconnected… Press Home to reconnect*.
 
 Details: [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
+
+> [!WARNING]
+> **Exclusive mode, ASIO and bit-perfect output to a DAC/amp give no haptics.**
+>
+> X-Haptics hears audio by capturing what Windows mixes (WASAPI loopback). Players that send audio
+> straight to the device bypass that mixer, so the engine hears **silence**:
+>
+> - **TIDAL**: *Settings › Streaming › Exclusive Mode* (and *Force Volume*).
+> - **foobar2000**: output devices named **WASAPI (exclusive)**, **ASIO** (e.g. your DAC's or XMOS
+>   ASIO driver), or kernel streaming.
+> - Other players with WASAPI exclusive / ASIO output (Qobuz, Roon, JRiver, MusicBee…).
+>
+> While such a player holds the device:
+>
+> - there is no vibration from that music, nor from anything else playing on the same device;
+> - other apps (games) may not be able to play on that DAC at all;
+> - the engine's capture breaks and does not recover by itself. With the watchdog ON the guard notices
+>   the device is held (one balloon, `Source: audio device in exclusive use…`), does **not** re-arm in
+>   vain, and re-arms once about 2 s after the player releases the device.
+>
+> **Fix:** to feel music, use shared output: TIDAL with *Exclusive Mode* **off**, foobar2000 with
+> **WASAPI (shared)** or **Default : Primary Sound Driver**. Keep the DAC as the Windows default playback
+> device so Mix captures it. If you want bit-perfect listening, accept that haptics stop while it plays.
 
 ## Troubleshooting
 
@@ -157,6 +180,7 @@ Details: [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
 | `engine unreachable` | The engine is not running or still starting; the guard waits for it. A hotkey press tells you whether it is not installed, not running or not responding. |
 | `hotkey warning: … already used by another app` | Pick another combination in `config.json` and remap the button. |
 | No vibration but the source looks right | Haptics asleep: press any controller button. Check the battery. |
+| No vibration while TIDAL / foobar2000 plays to a DAC | The player uses exclusive mode or ASIO; switch it to shared output (see the warning above). |
 | A game's profile stays off | Source switching disabled it while the game runs. Cycle back, or exit the game; the original flags are restored automatically. |
 | `re-arm failed` / `switch failed` with an HTTP error | A Flydigi update may have changed the engine API. |
 
