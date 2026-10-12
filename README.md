@@ -142,6 +142,27 @@ another process of the same app does, a balloon says so and the log shows
 In practice, browsers work as a per-app source only while you are in the browser window. For browser
 audio in the background, use Mix. Single-process players (foobar2000…) and games are not affected.
 
+#### Games that play audio from a child process (follow child audio)
+
+Some games play part of their audio from a child process that the engine's capture of the game does
+**not** hear. Example: Honkai Impact 3rd (`BH3.exe`) opens web events in an embedded browser,
+`ZFGameBrowser.exe`. While the event page plays music, the BH3 capture stays silent.
+
+With `watchdog.followChildAudio` on (default), the guard handles this while a game is the audio source:
+
+1. **Detect.** The engine hears silence while a descendant process of the game plays audio, for
+   `followDetectPolls` polls in a row (default 3, about 3 s).
+2. **Follow.** It registers the child as a disabled custom game if needed, switches the game's profile
+   off and the child's on. If, 4 s later, the engine is bound to a process of the child that plays
+   nothing (multi-process child, see above), it switches to **Mix** instead.
+3. **Return.**
+   - The child closes or stays silent for `followReturnSilenceSec` (default 15 s): back to the game.
+     The silence rule matters because ZFGameBrowser keeps running after the event page is closed.
+   - The game closes: back to **Mix**.
+
+Pressing the switch-source hotkey or the master switch cancels following. All profile flags it changes
+are recorded in `data\sources.txt` and restored like the ones changed by source switching.
+
 The original `enabled` flags are saved in `data\sources.txt` and put back once those processes have
 exited, so the next game launch behaves as before.
 
@@ -280,6 +301,9 @@ HapticsGuard.exe --reload   :: reload config.json
 | `maxIdleBounces` | 2 | re-arms undone by someone else before the guard stops retrying |
 | `webCheckDelaySec` | 5 | after a manual re-arm, check whether the Space Station page paused it |
 | `backoffSec` | [5,10,20,30,60] | wait between automatic re-arms |
+| `followChildAudio` | true | follow audio played by a child process of the captured game (see *follow child audio*) |
+| `followDetectPolls` | 3 | the child must play this many polls in a row before following |
+| `followReturnSilenceSec` | 15 | child silent this long → back to the game |
 
 After editing, use **Reload config** (or `--reload`).
 

@@ -30,6 +30,9 @@
     "healthyResetSec": 30,
     "maxIdleBounces": 2,
     "webCheckDelaySec": 5,
+    "followChildAudio": true,
+    "followDetectPolls": 3,
+    "followReturnSilenceSec": 15,
     "backoffSec": [5, 10, 20, 30, 60]
   },
   "sources": {

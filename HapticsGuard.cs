@@ -38,9 +38,9 @@ using System.Reflection;
 [assembly: AssemblyCompany("Emrise")]
 [assembly: AssemblyProduct("X-Haptics Guard")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Emrise. MIT License.")]
-[assembly: AssemblyVersion("1.0.1.0")]
-[assembly: AssemblyFileVersion("1.0.1.0")]
-[assembly: AssemblyInformationalVersion("1.0.1")]
+[assembly: AssemblyVersion("1.0.2.0")]
+[assembly: AssemblyFileVersion("1.0.2.0")]
+[assembly: AssemblyInformationalVersion("1.0.2")]
 
 namespace FlydigiHapticsGuard
 {
@@ -83,6 +83,9 @@ namespace FlydigiHapticsGuard
         public static int HealthyResetSec = 30;            // reset backoff after this long healthy
         public static int MaxIdleBounces = 2;              // re-arms undone by someone else before backing off
         public static int WebCheckDelaySec = 5;            // after a manual re-arm, check whether the web page paused it
+        public static bool FollowChildAudio = true;        // per-app capture silent but a child process plays -> follow it
+        public static int FollowDetectPolls = 3;           // child must play this many polls in a row before following
+        public static int FollowReturnSilenceSec = 15;     // child silent this long -> back to the parent
         public static int[] BackoffSec = { 5, 10, 20, 30, 60 };
         // audio sources: process names (without .exe) never picked by the switch-source cycle
         public static List<string> SourceExclude = new List<string>();
@@ -120,6 +123,9 @@ namespace FlydigiHapticsGuard
     ""healthyResetSec"": 30,
     ""maxIdleBounces"": 2,
     ""webCheckDelaySec"": 5,
+    ""followChildAudio"": true,
+    ""followDetectPolls"": 3,
+    ""followReturnSilenceSec"": 15,
     ""backoffSec"": [5, 10, 20, 30, 60]
   },
   ""sources"": {
@@ -184,6 +190,10 @@ namespace FlydigiHapticsGuard
                 HealthyResetSec = I(root, "watchdog.healthyResetSec", HealthyResetSec);
                 MaxIdleBounces = I(root, "watchdog.maxIdleBounces", MaxIdleBounces);
                 WebCheckDelaySec = I(root, "watchdog.webCheckDelaySec", WebCheckDelaySec);
+                var follow = EngineClient.At(root, "watchdog.followChildAudio");
+                if (follow is bool) FollowChildAudio = (bool)follow;
+                FollowDetectPolls = Math.Max(1, I(root, "watchdog.followDetectPolls", FollowDetectPolls));
+                FollowReturnSilenceSec = Math.Max(3, I(root, "watchdog.followReturnSilenceSec", FollowReturnSilenceSec));
                 var backoff = EngineClient.At(root, "watchdog.backoffSec") as object[];
                 if (backoff != null && backoff.Length > 0)
                 {
@@ -341,9 +351,12 @@ namespace FlydigiHapticsGuard
     {
         const int eRender = 0, DEVICE_STATE_ACTIVE = 1, CLSCTX_ALL = 23, AudioSessionStateExpired = 2;
 
-        public static HashSet<int> ProcessIds()
+        public static HashSet<int> ProcessIds() { return new HashSet<int>(SessionPeaks().Keys); }
+
+        // pid -> current peak level of its audio session(s), over all active playback devices
+        public static Dictionary<int, float> SessionPeaks()
         {
-            var pids = new HashSet<int>();
+            var pids = new Dictionary<int, float>();
             IMMDeviceEnumerator en = null; IMMDeviceCollection devices = null;
             try
             {
@@ -369,7 +382,12 @@ namespace FlydigiHapticsGuard
                                 var ctl = (IAudioSessionControl2)ctlObj;
                                 int state; uint pid;
                                 if (ctl.GetState(out state) == 0 && state != AudioSessionStateExpired && ctl.GetProcessId(out pid) == 0 && pid != 0)
-                                    pids.Add((int)pid);
+                                {
+                                    float peak = 0, old;
+                                    var meter = ctlObj as IAudioMeterInformation;
+                                    if (meter != null) meter.GetPeakValue(out peak);
+                                    pids[(int)pid] = pids.TryGetValue((int)pid, out old) ? Math.Max(old, peak) : peak;
+                                }
                             }
                             catch { }
                             finally { if (ctlObj != null) Marshal.ReleaseComObject(ctlObj); }
@@ -419,6 +437,19 @@ namespace FlydigiHapticsGuard
             }
             finally { CloseHandle(snap); }
             return map;
+        }
+
+        public static bool IsDescendant(int pid, int ancestor, Dictionary<int, int> parents)
+        {
+            int cur = pid;
+            for (int depth = 0; depth < 32; depth++)
+            {
+                int parent;
+                if (!parents.TryGetValue(cur, out parent) || parent == cur || parent <= 0) return false;
+                if (parent == ancestor) return true;
+                cur = parent;
+            }
+            return false;
         }
 
         // True when pid itself, or one of its descendants, owns an audio session.
@@ -989,6 +1020,8 @@ namespace FlydigiHapticsGuard
                 return;
             }
 
+            if (followParentScope != null) { Log.Write("manual source switch: stop following " + followChildName); ClearFollow(); }
+
             var games = RunningGames(true, false);   // all running registered scopes (all get switched off)
             if (games.Count == 0)
             {
@@ -1064,6 +1097,181 @@ namespace FlydigiHapticsGuard
             SourceOverrides.Save(new Dictionary<string, bool>());
             Log.Write("audio source overrides restored (" + string.Join(",", originals.Keys) + ")");
         }
+
+        // ---- follow child audio
+        // A game can play audio from a child process (e.g. BH3 -> ZFGameBrowser for web events) that the
+        // engine's per-app capture of the game does not hear. While following, the child's own profile is
+        // enabled (or Mix when the engine binds a process of the child that plays nothing):
+        //   child closed or silent for followReturnSilenceSec -> back to the parent; parent closed -> Mix.
+
+        string followParentScope, followChildScope, followParentName, followChildName;
+        int followParentPid, childAudioPolls;
+        bool followViaMix;
+        DateTime followVerifyAt = DateTime.MaxValue, childSilentSince = DateTime.MaxValue;
+
+        void ClearFollow()
+        {
+            followParentScope = followChildScope = followParentName = followChildName = null;
+            followParentPid = 0; childAudioPolls = 0; followViaMix = false;
+            followVerifyAt = childSilentSince = DateTime.MaxValue;
+        }
+
+        // Returns true when it switched sources this tick.
+        bool FollowChildAudio(DateTime now, bool hid, bool capRunning, bool systemCapture, long capturePid, string scope, double enginePeak)
+        {
+            if (!Settings.FollowChildAudio || !hid) return false;
+            if (followParentScope != null) return UpdateFollow(now);
+            if (!capRunning || systemCapture || capturePid <= 0 || string.IsNullOrEmpty(scope) || scope == "global" ||
+                (now - lastKickAt).TotalSeconds < Settings.RearmGraceSec || enginePeak >= Settings.EngineSilentPeak)
+            { childAudioPolls = 0; return false; }
+
+            var peaks = AudioSessions.SessionPeaks();
+            var parents = AudioSessions.ParentMap();
+            int best = 0; float bestPeak = 0;
+            foreach (var kv in peaks)
+                if (kv.Key != capturePid && kv.Value > bestPeak && AudioSessions.IsDescendant(kv.Key, (int)capturePid, parents))
+                { best = kv.Key; bestPeak = kv.Value; }
+            if (best == 0 || bestPeak < Settings.AudioPeakThreshold) { childAudioPolls = 0; return false; }
+            if (++childAudioPolls < Settings.FollowDetectPolls) return false;
+            childAudioPolls = 0;
+            StartFollow(scope, (int)capturePid, best);
+            return true;
+        }
+
+        void SetScope(Dictionary<string, object> configs, Dictionary<string, bool> originals, string id, bool enabled)
+        {
+            var c = configs != null && id != null && configs.ContainsKey(id) ? EngineClient.Obj(configs[id]) : null;
+            if (c == null) return;
+            bool have = EngineClient.Bool(c, "enabled");
+            if (!originals.ContainsKey(id)) originals[id] = have;
+            if (have != enabled) Toggle(id, c, enabled);
+        }
+
+        Dictionary<string, object> Configs()
+        {
+            return EngineClient.Obj(EngineClient.At(engine.Get("/api/v1/xhaptics/configurations"), "configurations"));
+        }
+
+        void StartFollow(string parentScope, int parentPid, int childPid)
+        {
+            followParentScope = parentScope; followParentPid = parentPid;
+            followParentName = ProcessName(parentPid) ?? parentScope;
+            followChildName = ProcessName(childPid);
+            childSilentSince = DateTime.MaxValue;
+            Log.Write("child audio: " + followChildName + " (PID " + childPid + ") under " + followParentName + " plays while the engine hears nothing -> following it");
+
+            // the child's own profile (registered as a disabled custom game if needed)
+            string childScope = null;
+            try
+            {
+                var running = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { followChildName };
+                foreach (var g in MatchGames(LoadGames(false), running, false)) { childScope = g.Id; break; }
+                string path = AudioSessions.ImagePath(childPid);
+                if (childScope == null && !string.IsNullOrEmpty(path))
+                {
+                    var body = new Dictionary<string, object>();
+                    body["displayName"] = followChildName;
+                    body["processPath"] = path;
+                    childScope = EngineClient.Str(engine.Post("/api/v1/xhaptics/games/custom", body), "game.gameId");
+                    Log.Write("registered " + path + " as custom game " + childScope + " (disabled)");
+                    // keep auto-registered children out of the manual switch-source cycle
+                    if (!Settings.IsExcluded(followChildName))
+                    {
+                        var exclude = new List<string>(Settings.SourceExclude) { Settings.NormalizeProcessName(followChildName) };
+                        Settings.SaveSourceExclude(exclude);
+                    }
+                }
+            }
+            catch (Exception ex) { Log.Write("cannot register " + followChildName + ": " + Trim(ex.Message)); }
+
+            var configs = Configs();
+            var originals = SourceOverrides.Load();
+            if (childScope != null && configs != null && configs.ContainsKey(childScope)) SetScope(configs, originals, childScope, false);
+            SetScope(configs, originals, parentScope, false);
+            if (childScope != null && configs != null && configs.ContainsKey(childScope))
+            {
+                Thread.Sleep(1200);   // the engine only binds a scope enabled while it sits on Mix
+                SetScope(configs, originals, childScope, true);
+                followChildScope = childScope; followViaMix = false;
+                followVerifyAt = DateTime.Now.AddSeconds(4);
+            }
+            else followViaMix = true;
+            SourceOverrides.Save(originals);
+            lastKickAt = DateTime.Now; brokenSince = DateTime.MaxValue; deadPidSince = DateTime.MaxValue; silentMismatch = 0;
+            LastAction = "Following " + followChildName;
+            Notify("Audio from " + followChildName + " (inside " + followParentName + "): following it" + (followViaMix ? " via Mix." : "."), true);
+        }
+
+        bool UpdateFollow(DateTime now)
+        {
+            var parents = AudioSessions.ParentMap();
+            if (!ProcessAlive(followParentPid)) { EndFollow(followParentName + " closed", true); return true; }
+
+            // engine bound to a process of the child that plays nothing (multi-process child) -> Mix
+            if (!followViaMix && now >= followVerifyAt)
+            {
+                followVerifyAt = DateTime.MaxValue;
+                var st = engine.Get("/api/xhaptics/status");
+                long bound = EngineClient.Long(st, "realtimeAudio.wasapi.processId");
+                bool ok = EngineClient.Str(st, "realtimeAudio.wasapi.source") == "process" && bound > 0 &&
+                          AudioSessions.TreeHasSession((int)bound, AudioSessions.ProcessIds(), parents);
+                if (!ok)
+                {
+                    Log.Write("engine bound PID " + bound + " of " + followChildName + ", which plays nothing -> Mix");
+                    var configs = Configs(); var originals = SourceOverrides.Load();
+                    SetScope(configs, originals, followChildScope, false);
+                    SourceOverrides.Save(originals);
+                    followViaMix = true; lastKickAt = DateTime.Now;
+                    Notify(followChildName + ": switched to Mix (the engine cannot capture it on its own).", true);
+                    return true;
+                }
+            }
+
+            // is the child (any process of that name under the parent) still alive and playing?
+            bool childAlive = false; float childPeak = 0;
+            var peaks = AudioSessions.SessionPeaks();
+            foreach (var p in Process.GetProcessesByName(followChildName))
+            {
+                try
+                {
+                    if (!AudioSessions.IsDescendant(p.Id, followParentPid, parents)) continue;
+                    childAlive = true;
+                    float pk;
+                    if (peaks.TryGetValue(p.Id, out pk) && pk > childPeak) childPeak = pk;
+                }
+                finally { p.Dispose(); }
+            }
+            if (!childAlive) { EndFollow(followChildName + " closed", false); return true; }
+            if (childPeak >= Settings.AudioPeakThreshold) childSilentSince = DateTime.MaxValue;
+            else if (childSilentSince == DateTime.MaxValue) childSilentSince = now;
+            if ((now - childSilentSince).TotalSeconds >= Settings.FollowReturnSilenceSec)
+            { EndFollow(followChildName + " silent for " + Settings.FollowReturnSilenceSec + "s", false); return true; }
+            return false;
+        }
+
+        void EndFollow(string reason, bool toMix)
+        {
+            string parentName = followParentName, parentScope = followParentScope, childScope = followChildScope;
+            ClearFollow();
+            try
+            {
+                var configs = Configs(); var originals = SourceOverrides.Load();
+                SetScope(configs, originals, childScope, false);
+                if (!toMix)
+                {
+                    Thread.Sleep(1200);
+                    SetScope(configs, originals, parentScope, true);
+                }
+                SourceOverrides.Save(originals);
+            }
+            catch (Exception ex) { Log.Write("end follow failed: " + Trim(ex.Message)); }
+            lastKickAt = DateTime.Now; brokenSince = DateTime.MaxValue; deadPidSince = DateTime.MaxValue; silentMismatch = 0;
+            string target = toMix ? "Mix (all apps)" : parentName;
+            Log.Write("stop following (" + reason + ") -> " + target);
+            LastAction = "Source: " + target;
+            Notify(reason + ": audio source back to " + target + ".", true);
+        }
+
         public void Stop() { stopping = true; }
 
         void ResetMonitor()
@@ -1074,6 +1282,7 @@ namespace FlydigiHapticsGuard
             healthySince = now; seqChangedAt = now; nextKickAllowed = DateTime.MinValue; lastKickAt = DateTime.MinValue;
             lastSeq = -1; audioSecondsWhileStalled = 0; silentMismatch = 0; backoffIndex = 0; idleBounces = 0;
             lastKickWasIdle = false; loggedIdleHold = false;
+            ClearFollow();
         }
 
         public void Run()
@@ -1178,6 +1387,9 @@ namespace FlydigiHapticsGuard
                 Log.Write(string.Format("monitoring: hid={0} session={1} scope={2} capture={3} output={4}", hid, sessionState, scope, capRunning, outRunning));
                 return;
             }
+
+            // 0) a child process of the captured game plays audio the engine does not hear
+            if (FollowChildAudio(now, hid, capRunning, systemCapture, capturePid, scope, enginePeak)) return;
 
             // 1) controller connected
             if (hid && !hidConnected) Schedule(now.AddSeconds(Settings.ReconnectKickDelaySec), "controller connected");
