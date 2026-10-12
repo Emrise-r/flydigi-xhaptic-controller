@@ -12,6 +12,17 @@ and lets you control X-Haptics from the controller's back buttons:
 
 All hotkeys are configurable in `config.json`.
 
+**Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
+([v1.0](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0)). Get
+`HapticsGuard-v1.0.zip`, extract it anywhere and run `HapticsGuard.exe`.
+
+> **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
+> make the controller vibrate by itself. Install the engine with Flydigi Space Station first
+> (`C:\Program Files\Flydigi\Engine\xHaptics Engine.exe`).
+>
+> **Tested on:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition, xHaptics Engine 5.0.1.6, Windows 11.
+> Other Flydigi controllers that use the same engine may work but are untested.
+
 See [DIAGRAM.md](DIAGRAM.md) for how the pieces fit together.
 
 ---
@@ -47,6 +58,44 @@ pauses X-Haptics on purpose and the guard leaves it alone. Close the page to res
 
 > X-Haptics has its own *Real-time audio auto sleep*: with no controller input it stops vibrating until
 > you press a button. That is not a fault, and the guard does not treat it as one.
+
+### Warning: delays and the sleep state
+
+**Every re-arm interrupts haptics briefly.** A re-arm (manual, automatic or via the master switch) is
+*disable → 0.6 s → enable*, and the engine then rebuilds its capture. Expect about 1–2 s without
+vibration and a Flydigi "configuration applied" popup. Switching the audio source to an app adds another
+1.2 s.
+
+**Automatic recovery is deliberately not instant.** With the default `watchdog` settings, after
+something goes wrong the controller can stay silent for several seconds before the guard acts:
+
+| Event | Waits before re-arming |
+|---|---|
+| Controller connected | 4 s (`reconnectDelaySec`) |
+| Default output device changed | 2 s (`deviceChangeDelaySec`) |
+| Engine reports stopped / error | 4 s (`brokenPersistSec`) |
+| Audio playing but capture frozen | 5 s (`stallSec`) |
+| Any re-arm or source switch | nothing is judged for 10 s (`rearmGraceSec`) |
+| Repeated automatic re-arms | back-off 5 → 10 → 20 → 30 → 60 s (`backoffSec`) |
+
+**Do not lower these values much.** The engine needs a few seconds to come back after a re-arm. Values
+that are too short (for example `rearmGraceSec` < 5, `brokenPersistSec` < 2, `pollMs` < 500) make the
+guard re-arm an engine that is still starting. The result is a restart loop: haptics flicker on/off
+and the Flydigi popup keeps appearing. Raising the values makes recovery slower but safer.
+
+**Sleep state.** The engine's *Real-time audio auto sleep* (Space Station › X-Haptics › General
+settings) stops the vibration when there is no controller input. The engine status then shows
+`gripActivityGateOpen = false` and no motor frames are sent. It wakes up on the next controller input.
+
+- After **any** re-arm, X-Haptics starts asleep.
+- The back-button hotkeys send *keyboard* input, which does **not** wake it, so press any controller
+  button afterwards.
+- The guard never treats sleep as a fault and never re-arms because of it.
+- For haptics from music with the controller lying on the desk, turn auto sleep off or lengthen its
+  wait time in Space Station, then close the page.
+
+The engine also adds its own audio buffering (the status reported a queue delay of about 6–32 ms during
+testing). That is part of the engine and cannot be changed from here.
 
 ### Audio source switching
 
@@ -101,10 +150,17 @@ audio. Use WASAPI *shared* if you want haptics from a music player.
 
 ## Requirements
 
+- **Flydigi xHaptics Engine (required)**, installed and running. Its installer registers it to start
+  with Windows. If it is missing or stopped, the guard says so when you press a hotkey, and the tray
+  menu offers *Start xHaptics Engine*.
+- A controller supported by the engine. Tested on the **APEX 6 Pro Phantom Blade Zero** edition with
+  engine **5.0.1.6**.
 - Windows 10/11 with .NET Framework 4.x (built in; no SDK needed).
-- Flydigi xHaptics Engine installed and running (it starts with Windows by default).
 
 ## Build and install
+
+Prebuilt: download `HapticsGuard-v1.0.zip` from
+[Releases](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases). From source:
 
 ```bat
 build.cmd              :: compiles HapticsGuard.exe with the csc.exe that ships with Windows
@@ -217,6 +273,9 @@ HapticsGuard.exe --reload   :: reload config.json
 | `backoffSec` | [5,10,20,30,60] | wait between automatic re-arms |
 
 After editing, use **Reload config** (or `--reload`).
+
+> ⚠️ Lower watchdog values react faster but can make the guard re-arm an engine that is still starting,
+> which leads to restart loops. See [Warning: delays and the sleep state](#warning-delays-and-the-sleep-state).
 
 ---
 
