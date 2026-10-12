@@ -7,3 +7,9 @@ data/
 
 # personal settings; created from config/config.default.json on first run
 config.json
+
+# MSBuild / IDE
+obj/
+bin/
+.vs/
+*.user

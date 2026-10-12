@@ -10,312 +10,63 @@ and lets you control X-Haptics from the controller's back buttons:
 | `Ctrl+Alt+P` | M4 | **Switch audio source.** Mix (all apps) → app/game 1 → app/game 2 → … → Mix. |
 | *(none)* | – | Re-arm X-Haptics once (disable → enable) without changing the master switch. |
 
-All hotkeys are configurable in `config.json`.
-
 ![Tray menu with the Audio sources submenu](docs/images/tray-menu.png)
 
 **Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
-([v1.0.1](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.1)). Get
-`HapticsGuard-v1.0.1.zip`, extract it anywhere and run `HapticsGuard.exe`.
+([v1.0.2](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.2)). Get
+`HapticsGuard-v1.0.2.zip`, extract it anywhere and run `HapticsGuard.exe`.
 
 > **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
-> make the controller vibrate by itself. Install the engine with Flydigi Space Station first
-> (`C:\Program Files\Flydigi\Engine\xHaptics Engine.exe`).
+> make the controller vibrate by itself. Install the engine with Flydigi Space Station first.
 >
 > **Tested on:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition, xHaptics Engine 5.0.1.6, Windows 11.
 > Other Flydigi controllers that use the same engine may work but are untested.
 
-See [DIAGRAM.md](DIAGRAM.md) for how the pieces fit together.
+### Documentation
 
----
-
-## How it works
-
-The xHaptics Engine (`C:\Program Files\Flydigi\Engine\xHaptics Engine.exe`) runs a local HTTP API on
-`127.0.0.1:18757`. The Space Station web page (`space_station.flydigi.com`) talks to that API. The engine:
-
-1. captures audio with WASAPI loopback: the whole system mix by default, or a single process
-   (process-loopback) while an enabled game/app profile is running,
-2. turns it into grip/trigger motor frames,
-3. sends them to the controller over HID.
-
-The "toggle X-Haptics" switch on the web page is just
-`PATCH /api/v1/xhaptics/configurations/{scope}` with `enabled: false` then `true`, which rebuilds the
-capture pipeline. X-Haptics Guard calls the same API and authenticates the same way the web page does.
-
-### Watchdog (while the master switch is ON)
-
-X-Haptics is re-armed automatically when:
-
-- the controller (re)connects,
-- the Windows default playback device changes,
-- the engine reports that capture or output stopped, or reports an error (for example after a player
-  released WASAPI exclusive mode),
-- audio is playing but the engine's system capture is frozen or only hears silence,
-- a per-game capture is still bound to a game process that has already exited.
-
-Repeated re-arms back off (5 → 10 → 20 → 30 → 60 s). The watchdog **never fights the Space Station
-page**: while that page is open and holds the controller (button mapping, firmware update…), the engine
-pauses X-Haptics on purpose and the guard leaves it alone. Close the page to resume.
-
-> X-Haptics has its own *Real-time audio auto sleep*: with no controller input it stops vibrating until
-> you press a button. That is not a fault, and the guard does not treat it as one.
-
-### Warning: delays and the sleep state
-
-**Every re-arm interrupts haptics briefly.** A re-arm (manual, automatic or via the master switch) is
-*disable → 0.6 s → enable*, and the engine then rebuilds its capture. Expect about 1–2 s without
-vibration and a Flydigi "configuration applied" popup. Switching the audio source to an app adds another
-1.2 s.
-
-**Automatic recovery is deliberately not instant.** With the default `watchdog` settings, after
-something goes wrong the controller can stay silent for several seconds before the guard acts:
-
-| Event | Waits before re-arming |
+| | |
 |---|---|
-| Controller connected | 4 s (`reconnectDelaySec`) |
-| Default output device changed | 2 s (`deviceChangeDelaySec`) |
-| Engine reports stopped / error | 4 s (`brokenPersistSec`) |
-| Audio playing but capture frozen | 5 s (`stallSec`) |
-| Any re-arm or source switch | nothing is judged for 10 s (`rearmGraceSec`) |
-| Repeated automatic re-arms | back-off 5 → 10 → 20 → 30 → 60 s (`backoffSec`) |
-
-**Do not lower these values much.** The engine needs a few seconds to come back after a re-arm. Values
-that are too short (for example `rearmGraceSec` < 5, `brokenPersistSec` < 2, `pollMs` < 500) make the
-guard re-arm an engine that is still starting. The result is a restart loop: haptics flicker on/off
-and the Flydigi popup keeps appearing. Raising the values makes recovery slower but safer.
-
-**Sleep state.** The engine's *Real-time audio auto sleep* (Space Station › X-Haptics › General
-settings) stops the vibration when there is no controller input. The engine status then shows
-`gripActivityGateOpen = false` and no motor frames are sent. It wakes up on the next controller input.
-
-- After **any** re-arm, X-Haptics starts asleep.
-- The back-button hotkeys send *keyboard* input, which does **not** wake it, so press any controller
-  button afterwards.
-- The guard never treats sleep as a fault and never re-arms because of it.
-- For haptics from music with the controller lying on the desk, turn auto sleep off or lengthen its
-  wait time in Space Station, then close the page.
-
-The engine also adds its own audio buffering (the status reported a queue delay of about 6–32 ms during
-testing). That is part of the engine and cannot be changed from here.
-
-### Audio source switching
-
-The engine has no "capture this process" call. Instead it captures one process while an **enabled**
-game/app profile is running, and the whole mix when none is. The switch-source hotkey flips the
-`enabled` flags of the running profiles:
-
-- **Mix**: every running profile disabled, so the engine captures all apps.
-- **App/game X**: only X enabled, so the engine captures only X.
-
-Only apps/games that are **registered in X-Haptics, currently running and not excluded** are in the
-cycle. Manage them from the tray menu **Audio sources**. It lists every process that has an audio
-session (the same apps the Windows volume mixer shows) plus running registered games:
-
-- **Checked** = part of the cycle.
-- Checking an app marked *not registered* registers it as an X-Haptics custom game with its profile
-  **off** (`POST /api/v1/xhaptics/games/custom`). While the profile is off the engine ignores the app,
-  and the switch-source hotkey turns it on only when you select it.
-- Unchecking adds the process to `sources.exclude` in `config.json`. Nothing is removed from Flydigi's
-  game list. An excluded game is never picked as a target, but it is still switched off when you
-  select Mix or another source.
-
-You can also register apps by hand in Space Station → X-Haptics → add a custom game. Turn the new
-profile off there.
-
-#### Multi-process apps (Chrome, Edge, other Chromium/Electron apps)
-
-Chrome has dozens of `chrome.exe` processes. Audio comes from a child *audio service* process. The
-engine's process-loopback includes the whole process tree of the process it captures, and it chooses
-that process continuously:
-
-- **while the app's window is focused**: the process that owns that window (Chrome's main browser
-  process, whose tree contains the audio service), so haptics work;
-- **otherwise**: the process it matched by name when the profile started, often a renderer that plays
-  nothing, so the capture is silent.
-
-Re-arming the profile does not change this, because the engine matches a renderer again. The guard can
-only detect it: after switching to such a source, if the captured process tree plays nothing while
-another process of the same app does, a balloon says so and the log shows
-`… plays no audio (multi-process app; only captured while its window is focused)`.
-
-In practice, browsers work as a per-app source only while you are in the browser window. For browser
-audio in the background, use Mix. Single-process players (foobar2000…) and games are not affected.
-
-#### Games that play audio from a child process (follow child audio)
-
-Some games play part of their audio from a child process that the engine's capture of the game does
-**not** hear. Example: Honkai Impact 3rd (`BH3.exe`) opens web events in an embedded browser,
-`ZFGameBrowser.exe`. While the event page plays music, the BH3 capture stays silent.
-
-With `watchdog.followChildAudio` on (default), the guard handles this while a game is the audio source:
-
-1. **Detect.** The engine hears silence while a descendant process of the game plays audio, for
-   `followDetectPolls` polls in a row (default 3, about 3 s).
-2. **Follow.** It registers the child as a disabled custom game if needed, switches the game's profile
-   off and the child's on. If, 4 s later, the engine is bound to a process of the child that plays
-   nothing (multi-process child, see above), it switches to **Mix** instead.
-3. **Return.**
-   - The child closes or stays silent for `followReturnSilenceSec` (default 15 s): back to the game.
-     The silence rule matters because ZFGameBrowser keeps running after the event page is closed.
-   - The game closes: back to **Mix**.
-
-Pressing the switch-source hotkey or the master switch cancels following. All profile flags it changes
-are recorded in `data\sources.txt` and restored like the ones changed by source switching.
-
-The original `enabled` flags are saved in `data\sources.txt` and put back once those processes have
-exited, so the next game launch behaves as before.
-
-WASAPI **exclusive** mode bypasses the Windows mixer, so nothing (not even the engine) can capture that
-audio. Use WASAPI *shared* if you want haptics from a music player.
+| [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | engine API, watchdog rules and delays, source switching, follow child audio, controller states |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | every `config.json` setting |
+| [docs/TESTING.md](docs/TESTING.md) | manual test cases and what was measured (controller/dock, Chrome, BH3, antivirus scans) |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | build, source layout, files, release checklist |
+| [DIAGRAM.md](DIAGRAM.md) | diagrams |
 
 ---
 
 ## Requirements
 
-- **Flydigi xHaptics Engine (required)**, installed and running. Its installer registers it to start
-  with Windows. If it is missing or stopped, the guard says so when you press a hotkey, and the tray
-  menu offers *Start xHaptics Engine*.
-- A controller supported by the engine. Tested on the **APEX 6 Pro Phantom Blade Zero** edition with
-  engine **5.0.1.6**.
-- Windows 10/11 with .NET Framework 4.x (built in; no SDK needed).
+- **Flydigi xHaptics Engine**, installed and running (its installer starts it with Windows). If it is
+  missing or stopped, the guard says so when you press a hotkey, and the tray menu offers
+  *Start xHaptics Engine*.
+- Windows 10/11 with .NET Framework 4.x (built in).
 
-## Build and install
+## Install
 
-Prebuilt: download `HapticsGuard-v<version>.zip` from
-[Releases](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases). From source:
+Only `HapticsGuard.exe` is needed. On first start it creates `config.json` and `data\` (log and state)
+next to the exe, or in `%LOCALAPPDATA%\FlydigiHapticsGuard\` when that folder is not writable.
 
-```bat
-build.cmd              :: compiles HapticsGuard.exe with the csc.exe that ships with Windows
-HapticsGuard.exe       :: run it; it sits in the tray (only one instance runs)
-```
+| Put it in | |
+|---|---|
+| `%LOCALAPPDATA%\Programs\X-Haptics Guard\` | recommended per-user location, no admin needed |
+| any folder you created, Desktop, Downloads | fine |
+| `C:\Program Files\…` | works; settings and log go to `%LOCALAPPDATA%\FlydigiHapticsGuard\`. Do not run it as administrator |
 
-**Antivirus.** The exe is small, unsigned, registers global hotkeys and lists processes, so a few
-antivirus engines flag it with generic machine-learning verdicts. For v1.0.1, Windows Defender found
-nothing and [VirusTotal](https://www.virustotal.com/gui/file/1f938d7d069fa5260da5018c7fa56245361fc50408141c5764ed333d68b7a042)
-shows 4/71 generic ML/PUA hits (Bkav, Elastic, SecureAge, Sophos), with the major engines clean. If you
-prefer, build the exe yourself from `HapticsGuard.cs` with `build.cmd`.
+The guard does **not** start with Windows by itself: turn **Start with Windows** on in the tray menu.
 
-The guard does **not** start with Windows by itself. Turn that on or off from the tray menu with
-**Start with Windows**, which adds or removes `X-Haptics Guard` under
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. A Startup-folder shortcut from older versions
-counts as "on" and is removed the next time you use the toggle.
+To build it yourself: run `build.cmd` (uses the C# compiler that ships with Windows), see
+[DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-The folder is self-contained, so you can copy or clone it anywhere:
-
-| Path | Tracked in git | Purpose |
-|---|---|---|
-| `HapticsGuard.cs` | yes | source |
-| `build.cmd` | yes | build script |
-| `app.manifest` | yes | Windows manifest embedded in the exe (runs as the current user, never asks for admin) |
-| `config/config.default.json` | yes | default settings; copied to `config.json` on first run and by tray › *Reset config to defaults* |
-| `config.json` | no | your hotkeys and tuning (edited by you and by the *Audio sources* menu) |
-| `README.md`, `DIAGRAM.md` | yes | docs |
-| `docs/images/*.png` | yes | annotated Space Station screenshots used in this README |
-| `HapticsGuard.exe` | no | build output |
-| `data\auto-mode.txt` | no | master switch state + scopes it disabled |
-| `data\sources.txt` | no | original profile flags changed by source switching |
-| `data\guard.log` | no | log (rotated at 1 MB) |
-
-## Tray menu
-
-- **X-Haptics on + auto re-arm**: the master switch (check mark = ON).
-- **Switch audio source**
-- **Audio sources**: choose which apps are part of the switch-source cycle (see above).
-- **Re-arm X-Haptics once**
-- **Open X-Haptics settings**: opens the Space Station X-Haptics page (as a Chrome app window if Chrome is installed).
-- **Edit config** / **Reload config**: edit `config.json`, then reload without restarting.
-- **Reset config to defaults...**: after a confirmation, overwrites `config.json` with `config/config.default.json` and
-  reloads. The previous file is saved as `data\config.backup.json`. Use this when the file is broken
-  (a balloon says `config.json error` on start or reload).
-- **View log**
-- **Start with Windows**: on/off, off by default.
-- **Start xHaptics Engine**: only shown when the engine is installed but not running.
-- **Exit**
-
-The tooltip shows `[ON]` / `[OFF]` and the last action.
-
-## Command line
-
-```bat
-HapticsGuard.exe            :: start (only one instance runs)
-HapticsGuard.exe --toggle   :: master switch
-HapticsGuard.exe --cycle    :: switch audio source
-HapticsGuard.exe --kick     :: re-arm once
-HapticsGuard.exe --reload   :: reload config.json
-```
-
-## Configuration (`config.json`)
-
-```json
-{
-  "hotkeys": {
-    "toggle": "Ctrl+Alt+R",
-    "switchSource": "Ctrl+Alt+P",
-    "rearmOnce": ""
-  },
-  "engine": {
-    "apiUrl": "http://127.0.0.1:18757",
-    "webOrigin": "https://space_station.flydigi.com",
-    "statusSocketPort": 18758,
-    "exePath": "C:\\Program Files\\Flydigi\\Engine\\xHaptics Engine.exe",
-    "gameListPath": "%APPDATA%\\Flydigi\\xHaptics Engine\\config\\xhaptics_game_status.json"
-  },
-  "ui": {
-    "url": "https://space_station.flydigi.com/#/controller/x-haptics",
-    "browser": ""
-  },
-  "watchdog": { "...": "see below" },
-  "sources": {
-    "exclude": ["steam.exe"]
-  }
-}
-```
-
-- **sources.exclude**: process names never picked by the switch-source cycle. The *Audio sources* menu
-  keeps this list up to date (it rewrites only this key, keeping the rest of the file).
-
-- **Hotkeys**: defaults are `Ctrl+Alt+R` and `Ctrl+Alt+P`, picked because few apps use them (`Ctrl+Alt+S`, for example, is a window zoom shortcut in some tools). Format: modifiers `Ctrl`, `Alt`, `Shift`, `Win` plus one key name from .NET `Keys` (`A`–`Z`,
-  `0`–`9`, `F1`–`F24`, `Home`, `PageUp`, `OemPeriod` for `.`/`>`, `Oemcomma` for `,`/`<`, …). An empty string disables the hotkey. If another app
-  already owns a hotkey, a balloon and the log say so.
-- **engine.exePath**: used only for the tray icon.
-- **engine.gameListPath**: the engine's own list of games and their process names. The guard reads this
-  file instead of calling `GET /api/v1/xhaptics/games`, because that call makes the engine rescan games
-  and drop to Mix for about 2 seconds. The API is only used as a fallback when you switch the source
-  yourself and the file cannot be read.
-- **ui.browser**: empty = Chrome app window if Chrome is installed, otherwise the default browser.
-  You can also give a full path to a browser exe.
-- **watchdog**:
-
-| Key | Default | Meaning |
-|---|---|---|
-| `pollMs` | 1000 | status poll interval |
-| `reconnectDelaySec` | 4 | re-arm this long after the controller connects |
-| `deviceChangeDelaySec` | 2 | re-arm this long after the default output device changes |
-| `brokenPersistSec` | 4 | how long "stopped/error" must last before a re-arm |
-| `rearmGraceSec` | 10 | ignore "stopped" this long after any re-arm or source switch |
-| `stallSec`, `stallAudioSec` | 5, 3 | capture frozen this long while audio plays this long |
-| `audioPeakThreshold` | 0.02 | system meter level that counts as "audio is playing" |
-| `loudPeakThreshold`, `engineSilentPeak`, `silentMismatchKick` | 0.05, 0.0005, 6 | "loud system audio but the engine hears silence" detector |
-| `healthyResetSec` | 30 | reset the backoff after this long healthy |
-| `maxIdleBounces` | 2 | re-arms undone by someone else before the guard stops retrying |
-| `webCheckDelaySec` | 5 | after a manual re-arm, check whether the Space Station page paused it |
-| `backoffSec` | [5,10,20,30,60] | wait between automatic re-arms |
-| `followChildAudio` | true | follow audio played by a child process of the captured game (see *follow child audio*) |
-| `followDetectPolls` | 3 | the child must play this many polls in a row before following |
-| `followReturnSilenceSec` | 15 | child silent this long → back to the game |
-
-After editing, use **Reload config** (or `--reload`).
-
-> ⚠️ Lower watchdog values react faster but can make the guard re-arm an engine that is still starting,
-> which leads to restart loops. See [Warning: delays and the sleep state](#warning-delays-and-the-sleep-state).
+**Antivirus:** the exe is small, unsigned, registers global hotkeys and lists processes, so a few engines
+flag it with generic machine-learning verdicts (v1.0.2: Defender clean,
+[VirusTotal](https://www.virustotal.com/gui/file/23563875530c5f8794c28058c487a36a349a22ec7aab574d766ec6477e70b289)
+5/69, major engines clean). Build it from source if you prefer.
 
 ---
 
 ## Mapping the APEX back buttons (M1–M4) to the hotkeys
 
-Keyboard output is only available in **Advanced** mapping mode. The *Basic* mode only offers
-Controller / Combo / Media / Turbo / Macro targets.
+Keyboard output is only available in **Advanced** mapping mode.
 
 | Back button | Hotkey (default) | Action |
 |---|---|---|
@@ -344,55 +95,70 @@ flowchart LR
 ![Step 1: Advanced, profile, Button Mapping, back button, Add Trigger, Direct](docs/images/step-1-add-trigger-direct.png)
 
 1. **Advanced**: switch the top-left toggle from *Basic* to *Advanced*.
-2. **Profile**: select the profile you use (Profile 1–4 on the left). Mappings are per profile.
+2. **Profile**: select the profile you use. Mappings are per profile.
 3. **Button Mapping** tab.
-4. **Back button**: click the button under *Rear Buttons*. Both screenshots show **M2** (master switch,
-   `Ctrl+Alt+R`); do the same for **M4** with `Ctrl+Alt+P`.
-5. **Add Trigger** in the *Trigger Actions* panel on the right. The list of trigger types opens first.
-6. **Direct**: click it. The action picker (steps 7–9) only appears after you choose a trigger type.
-   - **Direct** fires as soon as you press. This is what the screenshots use.
-   - **Long Press** also works if you want to hold the button, so a slip of the finger does not turn haptics off.
-   - Avoid **Press Pulse** / **Release Pulse**: the pulse can be too short for Windows to register the
-     key combination.
+4. **Back button**: click it under *Rear Buttons*. The screenshots show **M2** (`Ctrl+Alt+R`); do the
+   same for **M4** with `Ctrl+Alt+P`.
+5. **Add Trigger**: the list of trigger types opens first.
+6. **Direct**. **Long Press** also works if you prefer holding the button. Avoid **Press Pulse** /
+   **Release Pulse**: the pulse can be too short for Windows to register the combination.
 
 ### Step 2: choose the key combination (⑦–⑨)
 
 ![Step 2: Keyboard tab, Ctrl + Alt, key R; result Direct → Ctrl+Alt+R](docs/images/step-2-keyboard-ctrl-alt-key.png)
 
-7. **Keyboard** tab of the action picker.
+7. **Keyboard** tab.
 8. **Combo Modifiers**: turn on **Ctrl** and **Alt**.
-9. **Key**: **R** for M2, **P** for M4. The trigger row then reads `Direct → Ctrl+Alt+R`, and the back
-   button shows `Ctrl+A…`.
+9. **Key**: **R** for M2, **P** for M4. The trigger row reads `Direct → Ctrl+Alt+R`.
 
-If a *keyboard/mouse compatibility* notice appears, choose **Continue mapping**. Pressing the button only
-sends a hotkey, so games are not affected. If your Space Station version has a Save/Apply button, press it.
-Repeat for every profile you use, then **close the Space Station page**: while it is open it holds the
-controller and X-Haptics stays paused.
+If a *keyboard/mouse compatibility* notice appears, choose **Continue mapping**. Repeat for every
+profile you use, then **close the Space Station page**: while it is open it holds the controller and
+X-Haptics stays paused. Press the button and check tray › **View log** for `switch ON/OFF` or
+`audio source -> …`.
 
-Check that it works: press the button, then open tray → **View log**. You should see `switch ON/OFF` or
-`audio source -> …`. If nothing shows up, the button is not sending the hotkey: check the profile, or
-whether another app grabbed the combination (`hotkey warning` in the log).
-
-Notes:
-
-- The mapped back button no longer acts as a controller button in games.
-- Re-arming resets X-Haptics' auto-sleep gate. A keyboard hotkey does not wake it, so press any controller button afterwards.
+The mapped button no longer acts as a controller button in games.
 
 ---
+
+## Tray menu
+
+- **Source / Controller**: what is being captured (an app, `Mix (all apps)`, `X-Haptics off`, …) and
+  the controller state (`connected`, battery, `haptics asleep`, `not connected`).
+- **X-Haptics on + auto re-arm**: the master switch.
+- **Switch audio source** / **Audio sources**: cycle the source, choose which apps are in the cycle.
+  Apps that run inside a game are listed under it, e.g. `↳ ZFGameBrowser (in BH3)`.
+- **Re-arm X-Haptics once**, **Open X-Haptics settings**
+- **Edit config**, **Reload config**, **Reset config to defaults...**, **View log**
+- **Start with Windows** (off by default), **Start xHaptics Engine** (only when the engine is not running), **Exit**
+
+Command line: `HapticsGuard.exe --toggle | --cycle | --kick | --reload`.
+
+## Good to know
+
+- **Re-arming interrupts haptics for 1–2 s** and Flydigi shows a "configuration applied" popup.
+- **Haptics fall asleep** after a while without controller input (Space Station's *Real-time audio auto
+  sleep*) and after every re-arm. Press any controller button; the back-button hotkeys do not wake them.
+- **The Space Station page pauses X-Haptics** while it is open. Close it when you are done.
+- **Turned off in Space Station?** The guard leaves it off and says so; press the master switch twice.
+- **Browsers** (Chrome, Edge…) only work as a per-app source while their window is focused; use Mix.
+- **Games with embedded browsers** (BH3 web events): the guard follows the child process automatically.
+- **WASAPI exclusive** players bypass Windows' mixer; nothing can capture them. Use *shared* mode.
+- **Controller off / dock / cable**: the guard shows one balloon per state change, e.g.
+  *Controller disconnected… Press Home to reconnect*.
+
+Details: [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
 
 ## Troubleshooting
 
 | Log line / symptom | Meaning / fix |
 |---|---|
-| `config.json error: …` | The file is not valid JSON. Fix it and *Reload config*, or use *Reset config to defaults...*. |
+| `config.json error: …` | Invalid JSON. Fix it and *Reload config*, or *Reset config to defaults...*. |
 | `engine idle while Space Station page is attached` | The Space Station page holds the controller. Close it. |
-| `engine unreachable` | The xHaptics Engine is not running (or still starting). The guard keeps polling and starts monitoring as soon as the engine answers; nothing is shown at startup. If you press a hotkey meanwhile, a balloon says whether the engine is **not installed**, **not running** (tray > *Start xHaptics Engine*) or **not responding**. |
+| `engine unreachable` | The engine is not running or still starting; the guard waits for it. A hotkey press tells you whether it is not installed, not running or not responding. |
 | `hotkey warning: … already used by another app` | Pick another combination in `config.json` and remap the button. |
-| No vibration but `session=Running` | Auto-sleep: press any controller button. Also check the controller battery. |
-| A game's profile stays off | It was disabled by source switching and the game is still running. Cycle back, or exit the game and the original flags are restored automatically. |
-
-The engine's local API is undocumented and may change with Flydigi updates; if a new engine version
-breaks something, the log will show `re-arm failed` / `switch failed` with the HTTP error.
+| No vibration but the source looks right | Haptics asleep: press any controller button. Check the battery. |
+| A game's profile stays off | Source switching disabled it while the game runs. Cycle back, or exit the game; the original flags are restored automatically. |
+| `re-arm failed` / `switch failed` with an HTTP error | A Flydigi update may have changed the engine API. |
 
 ## License
 

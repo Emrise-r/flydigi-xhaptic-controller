@@ -1,6 +1,7 @@
 @echo off
-rem Builds HapticsGuard.exe with the .NET Framework 4 compiler that ships with Windows.
+rem Builds HapticsGuard.exe from src\**\*.cs with the .NET Framework 4 compiler that ships with Windows (C# 5).
+rem HapticsGuard.csproj builds the same sources with MSBuild / Visual Studio.
 "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /codepage:65001 ^
   /out:"%~dp0HapticsGuard.exe" /win32manifest:"%~dp0app.manifest" ^
   /r:System.Web.Extensions.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll ^
-  "%~dp0HapticsGuard.cs"
+  /recurse:"%~dp0src\*.cs"

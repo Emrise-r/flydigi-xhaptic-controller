@@ -33,6 +33,8 @@
     "followChildAudio": true,
     "followDetectPolls": 3,
     "followReturnSilenceSec": 15,
+    "controllerNotifyDelaySec": 5,
+    "lowBatteryPercent": 10,
     "backoffSec": [5, 10, 20, 30, 60]
   },
   "sources": {
