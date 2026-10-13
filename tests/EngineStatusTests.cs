@@ -46,7 +46,7 @@ namespace FlydigiHapticsGuard.Tests
           'hid': {
             'connected': true, 'opened': true, 'paused': false, 'writeFailures': 9, 'lastError': '',
             'vendorIdHex': '0x37d7', 'productIdHex': '0x2502',
-            'controllerDeviceInfo': { 'batteryLevel': 23, 'chargingStatus': 0, 'connectionMode': 1 }
+            'controllerDeviceInfo': { 'batteryLevel': 7, 'chargingStatus': 0, 'connectionMode': 1 }
           }
         }";
 
@@ -71,7 +71,8 @@ namespace FlydigiHapticsGuard.Tests
             Assert.True(s.HidConnected, "connected");
             Assert.True(s.HidOpened, "opened");
             Assert.False(s.HidPaused, "paused");
-            Assert.Equal(23L, s.Battery);
+            Assert.Equal(7L, s.BatteryLevel);
+            Assert.Equal(70L, s.BatteryPercent);
             Assert.Equal(0L, s.Charging);
             Assert.Equal(1L, s.ConnectionMode);
             Assert.Equal(9L, s.WriteFailures);
@@ -104,11 +105,20 @@ namespace FlydigiHapticsGuard.Tests
             Assert.True(s.SystemCapture, "no source = system capture");
             Assert.False(s.ProcessCapture, "ProcessCapture");
             Assert.Equal("", s.CaptureError);
-            Assert.Equal(-1L, s.Battery);
+            Assert.Equal(-1L, s.BatteryLevel);
+            Assert.Equal(-1L, s.BatteryPercent, "unknown battery");
             Assert.Equal(-1L, s.CapturePid);
             Assert.Equal(0.0, s.EnginePeak);
             Assert.False(s.HidConnected, "connected");
             Assert.Null(s.UsbId, "usb id");
+        }
+
+        [Test]
+        static void Battery_level_is_tenths()
+        {
+            Assert.Equal(100L, Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':10}}}").BatteryPercent, "10/10");
+            Assert.Equal(0L, Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':0}}}").BatteryPercent, "0/10");
+            Assert.Equal(-1L, Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':23}}}").BatteryPercent, "out of range");
         }
 
         [Test]

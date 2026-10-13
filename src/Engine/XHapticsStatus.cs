@@ -20,7 +20,8 @@ namespace FlydigiHapticsGuard
 
         // controller (HID)
         public bool HidConnected, HidOpened, HidPaused;
-        public long Battery, Charging, ConnectionMode, WriteFailures;
+        public long BatteryLevel;          // 0-10 (Space Station shows "level/10"); other values are invalid readings
+        public long Charging, ConnectionMode, WriteFailures;
         public string HidError;
         public string UsbId;               // "VID_37D7&PID_2502", or null when the engine does not say
 
@@ -30,6 +31,8 @@ namespace FlydigiHapticsGuard
         public bool SystemCapture { get { return (CaptureSource ?? "system") == "system"; } }
         public bool ProcessCapture { get { return CaptureSource == "process"; } }
         public bool HasError { get { return CaptureError.Length > 0 || OutputError.Length > 0; } }
+        // battery in percent (10 % steps), or -1 when unknown or out of range (the engine sometimes reports e.g. 22)
+        public long BatteryPercent { get { return BatteryLevel >= 0 && BatteryLevel <= 10 ? BatteryLevel * 10 : -1; } }
 
         public static XHapticsStatus Parse(Dictionary<string, object> st)
         {
@@ -51,7 +54,7 @@ namespace FlydigiHapticsGuard
                 HidConnected   = EngineClient.Bool(st, "hid.connected"),
                 HidOpened      = EngineClient.Bool(st, "hid.opened"),
                 HidPaused      = EngineClient.Bool(st, "hid.paused"),
-                Battery        = EngineClient.Long(st, "hid.controllerDeviceInfo.batteryLevel"),
+                BatteryLevel   = EngineClient.Long(st, "hid.controllerDeviceInfo.batteryLevel"),
                 Charging       = EngineClient.Long(st, "hid.controllerDeviceInfo.chargingStatus"),
                 ConnectionMode = EngineClient.Long(st, "hid.controllerDeviceInfo.connectionMode"),
                 WriteFailures  = EngineClient.Long(st, "hid.writeFailures"),

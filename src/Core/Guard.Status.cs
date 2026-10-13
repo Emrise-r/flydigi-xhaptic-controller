@@ -124,7 +124,7 @@ namespace FlydigiHapticsGuard
         {
             if (!s.HidConnected) return "not connected (off, out of range, or taken off the cable/dock): press Home";
             string text = "connected";
-            if (s.Battery >= 0) text += ", battery " + s.Battery + "%";
+            if (s.BatteryPercent >= 0) text += ", battery " + s.BatteryPercent + "%";
             if (s.Charging > 0) text += ", charging";
             if (s.HidPaused) text += ", paused";
             bool newWriteFailures = lastWriteFailures >= 0 && s.WriteFailures > lastWriteFailures;
@@ -177,14 +177,15 @@ namespace FlydigiHapticsGuard
 
         void CheckLowBattery(XHapticsStatus s)
         {
-            if (!s.HidConnected || Settings.LowBatteryPercent <= 0 || s.Battery < 0) return;
-            if (s.Battery <= Settings.LowBatteryPercent && !lowBatteryNotified)
+            long percent = s.BatteryPercent;
+            if (!s.HidConnected || Settings.LowBatteryPercent <= 0 || percent < 0) return;
+            if (percent <= Settings.LowBatteryPercent && !lowBatteryNotified)
             {
                 lowBatteryNotified = true;
-                Log.Write("controller battery low: " + s.Battery + "%");
-                Notify("Controller battery low (" + s.Battery + "%, as reported by the engine).", true);
+                Log.Write("controller battery low: " + percent + "% (level " + s.BatteryLevel + "/10)");
+                Notify("Controller battery low (" + percent + "%).", true);
             }
-            else if (s.Battery > Settings.LowBatteryPercent + 5) lowBatteryNotified = false;
+            else if (percent > Settings.LowBatteryPercent + 5) lowBatteryNotified = false;
         }
 
         // Logs every change of the raw controller state (helps with power-off / charging cases).
@@ -192,8 +193,8 @@ namespace FlydigiHapticsGuard
         // linked, so "usb" cannot tell cable/dock from wireless; it is only logged for diagnosis.
         void LogControllerChange(XHapticsStatus s)
         {
-            string line = string.Format("connected={0} opened={1} paused={2} battery={3} charging={4} mode={5} usb={6} asleep={7} writeFailures={8} error='{9}'",
-                                        s.HidConnected, s.HidOpened, s.HidPaused, s.Battery, s.Charging, s.ConnectionMode,
+            string line = string.Format("connected={0} opened={1} paused={2} battery={3}/10 charging={4} mode={5} usb={6} asleep={7} writeFailures={8} error='{9}'",
+                                        s.HidConnected, s.HidOpened, s.HidPaused, s.BatteryLevel, s.Charging, s.ConnectionMode,
                                         UsbDevices.IsPresent(controllerUsbId), ControllerAsleep, s.WriteFailures, s.HidError);
             if (line == lastControllerLine) return;
             lastControllerLine = line;

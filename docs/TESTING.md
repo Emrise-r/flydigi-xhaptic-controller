@@ -97,8 +97,10 @@ Wait about 10 s per step (state must last `controllerNotifyDelaySec`, plus the e
 - The dock carries USB data like the cable.
 - Windows cannot tell cable/dock from wireless: the controller's USB device `VID_37D7&PID_2502\FLYDIGI_APEX_6`
   is also presented by the wireless receiver (`VID_37D7&PID_6001`) while the controller is linked.
-- `chargingStatus` stayed 0 while charging. `connectionMode` and `batteryLevel` differ between links
-  (`mode=0`, 22 % over USB vs `mode=1`, 8 % wireless at the same moment).
+- `batteryLevel` is a 0–10 scale (Space Station shows it as `level/10`), not a percentage: 10 = full.
+  Out-of-range values (22, 23) show up now and then and are ignored, as the Space Station page does.
+- `chargingStatus` stayed 0 while charging. `connectionMode` differs between links: at the same moment
+  `mode=0` over USB reported `batteryLevel` 22 (out of range) and `mode=1` wireless reported 8 (80 %).
 
 ### Engine capture behaviour
 

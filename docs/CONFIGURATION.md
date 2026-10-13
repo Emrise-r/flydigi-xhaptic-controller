@@ -85,7 +85,7 @@ restores it and keeps the old file as `data\config.backup.json`.
 | `followDetectPolls` | 3 | the child must play this many polls in a row before following |
 | `followReturnSilenceSec` | 15 | child silent this long → back to the game |
 | `controllerNotifyDelaySec` | 5 | a controller state must last this long before its balloon |
-| `lowBatteryPercent` | 10 | one balloon when the reported battery drops to this; 0 = off |
+| `lowBatteryPercent` | 10 | one balloon when the battery drops to this; 0 = off. The engine reports the battery in 10 % steps (0–10) |
 
 > ⚠️ Lower watchdog values react faster but can make the guard re-arm an engine that is still starting,
 > which leads to restart loops (haptics flicker and the Flydigi popup keeps appearing). See
