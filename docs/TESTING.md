@@ -128,6 +128,7 @@ Wait about 10 s per step (state must last `controllerNotifyDelaySec`, plus the e
 | v1.0.2 (modular sources) | clean | [5/69](https://www.virustotal.com/gui/file/23563875530c5f8794c28058c487a36a349a22ec7aab574d766ec6477e70b289): Bkav, Elastic, SecureAge APEX, Sophos, Trapmine (generic ML/PUA); Microsoft, Kaspersky, ESET, BitDefender, Avast, Malwarebytes, Symantec, McAfee, CrowdStrike clean |
 | v1.0.3 | clean | [4/67](https://www.virustotal.com/gui/file/b49af9453331bfcc9469d32d8d78d635f858b9c6e7d6fb1ee01c7501e5daa37c): Bkav, Elastic, SecureAge APEX, Trapmine (generic ML); major engines clean |
 | v1.0.4 (refactor, unit tests) | clean | [5/71](https://www.virustotal.com/gui/file/80d9dc7d13efe2704b58f42c2b351c1f121bb7048a9df91c94b010a66903edc5): APEX, Bkav, Elastic, MaxSecure, Trapmine (generic ML/heuristic); Microsoft, Kaspersky, ESET, BitDefender, Avast, Malwarebytes, Symantec, CrowdStrike, Sophos clean |
+| v1.0.5 (battery level fix) | clean | [5/71](https://www.virustotal.com/gui/file/f4006921fcd4de0043bcfdbf78b9828d23a5c93af7e27e61c62e131a1479a6a1): the same five as v1.0.4 (APEX, Bkav, Elastic, MaxSecure, Trapmine); major engines clean |
 
 No engine names a malware family; the hits are generic ML/heuristic verdicts typical for small unsigned
 tools that register global hotkeys and enumerate processes.
