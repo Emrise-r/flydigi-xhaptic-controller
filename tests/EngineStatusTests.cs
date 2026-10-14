@@ -189,6 +189,7 @@ namespace FlydigiHapticsGuard.Tests
         {
             Assert.Equal("/api/v1/xhaptics/configurations/global", EngineApi.Configuration("global"));
             Assert.Equal("/api/v1/xhaptics/configurations/a%20b%2Fc", EngineApi.Configuration("a b/c"));
+            Assert.Equal("/api/v1/xhaptics/realtime-audio/configurations/global", EngineApi.RealtimeAudioConfiguration("global"));
         }
     }
 

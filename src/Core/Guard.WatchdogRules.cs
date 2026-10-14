@@ -21,6 +21,9 @@ namespace FlydigiHapticsGuard
             public bool Broken;          // rule 3, set by EngineBroken()
         }
 
+        // reasons of the re-arms that rules 1 and 2 schedule
+        internal const string ReasonReconnect = "controller connected", ReasonDeviceChanged = "default output device changed";
+
         // set while the default output device is held by an exclusive-mode / ASIO player
         bool exclusiveHold;
         DateTime nextExclusiveProbe = DateTime.MinValue;
@@ -28,7 +31,7 @@ namespace FlydigiHapticsGuard
         // 1) controller (re)connected -> re-arm after reconnectDelaySec, unless the engine recovers by itself
         void ScheduleOnReconnect(Poll p)
         {
-            if (p.St.HidConnected && !hidConnected) Schedule(p.Now.AddSeconds(Settings.ReconnectKickDelaySec), "controller connected");
+            if (p.St.HidConnected && !hidConnected) Schedule(p.Now.AddSeconds(Settings.ReconnectKickDelaySec), ReasonReconnect);
             hidConnected = p.St.HidConnected;
         }
 
@@ -38,7 +41,7 @@ namespace FlydigiHapticsGuard
             if (!p.HaveDevice || p.DeviceId == defaultDeviceId) return;
             Log.Write("default output changed: " + defaultDeviceId + " -> " + p.DeviceId);
             defaultDeviceId = p.DeviceId;
-            Schedule(p.Now.AddSeconds(Settings.DeviceChangeKickDelaySec), "default output device changed");
+            Schedule(p.Now.AddSeconds(Settings.DeviceChangeKickDelaySec), ReasonDeviceChanged);
         }
 
         // 3) the engine says the pipeline is down or errored; brokenSince tracks for how long.
@@ -142,6 +145,17 @@ namespace FlydigiHapticsGuard
             else deadPidSince = DateTime.MaxValue;
             return (p.Now - deadPidSince).TotalSeconds >= Settings.BrokenPersistSec
                 ? "game exited but the engine is still bound to its process (PID " + st.CapturePid + ")" : null;
+        }
+
+        // 2) skipped when the engine already follows the new device (engine 5.0.2.4+ does). That is only
+        // provable while something plays: system capture still counting frames and hearing audio while Windows
+        // plays. Engines that stay on the old device hear silence here, so they are still re-armed.
+        internal bool EngineFollowsDevice(Poll p)
+        {
+            var st = p.St;
+            return st.Running && st.CaptureRunning && st.OutputRunning && !st.HasError && st.SystemCapture &&
+                   (p.Now - seqChangedAt).TotalSeconds < 2 &&
+                   p.SystemPeak > Settings.AudioPeakThreshold && st.EnginePeak >= Settings.EngineSilentPeak;
         }
 
         // Resets the re-arm back-off once everything has been fine for healthyResetSec.

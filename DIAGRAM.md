@@ -10,7 +10,7 @@ flowchart LR
         APPS -.->|"process-loopback<br/>(one game/app)"| ENG
         ENG["xHaptics Engine.exe<br/>HTTP :18757 / WS :18758"]
         WEB["Space Station page<br/>space_station.flydigi.com"] <-->|"API + status WebSocket<br/>holds controller while configuring"| ENG
-        GUARD["HapticsGuard.exe<br/>(tray, optional start with Windows)"] -->|"PATCH configurations<br/>enable / disable scopes"| ENG
+        GUARD["HapticsGuard.exe<br/>(tray, optional start with Windows)"] -->|"enable / disable profiles<br/>(PUT global config, PATCH game profiles)"| ENG
         GUARD -->|"poll /api/xhaptics/status"| ENG
         GUARD -->|"default device + peak meter"| WIN
         CFG[("config.json<br/>hotkeys + tuning")] --> GUARD
@@ -62,11 +62,15 @@ flowchart TD
     S -- yes --> R{"re-armed < 10 s ago?"}
     R -- yes --> W
     R -- no --> C1{controller just connected?}
-    C1 -- yes --> K4["re-arm in 4 s"]
+    C1 -- yes --> K4{"4 s later:<br/>engine recovered by itself?"}
+    K4 -- yes --> W
     C1 -- no --> C2{default output device changed?}
-    C2 -- yes --> K2["re-arm in 2 s"]
+    C2 -- yes --> K2{"2 s later: engine hears<br/>the audio on the new device?"}
+    K2 -- yes --> W
     C2 -- no --> C3{"capture/output stopped<br/>or error for 4 s?"}
-    C3 -- yes --> WEB{"Space Station page attached<br/>or re-arm keeps bouncing?"}
+    C3 -- yes --> EX{"device held by an<br/>exclusive / ASIO player?"}
+    EX -- yes --> WAIT["wait; re-arm once<br/>when it is released"]
+    EX -- no --> WEB{"Space Station page attached<br/>or re-arm keeps bouncing?"}
     WEB -- yes --> HOLD["leave it alone<br/>(page holds the controller)"]
     WEB -- no --> KICK
     C3 -- no --> C4{"Mix capture:<br/>audio playing but capture frozen / silent?"}
@@ -74,8 +78,8 @@ flowchart TD
     C4 -- no --> C5{"process capture:<br/>game process exited?"}
     C5 -- yes --> KICK
     C5 -- no --> W
-    K4 --> KICK
-    K2 --> KICK
+    K4 -- no --> KICK
+    K2 -- no --> KICK
     KICK["re-arm: disable → enable scope<br/>backoff 5/10/20/30/60 s"] --> W
 ```
 

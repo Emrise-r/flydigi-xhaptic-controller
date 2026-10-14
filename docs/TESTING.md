@@ -6,7 +6,7 @@ is covered by the unit tests: run `test.cmd` (see [DEVELOPMENT.md](DEVELOPMENT.m
 manual case can be checked from the tray menu status lines and `data\guard.log` (tray › *View log*).
 
 **Test setup:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition with its charging dock, xHaptics Engine
-5.0.1.6, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep
+5.0.2.4, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep
 cases quickly (the allowed range is 5–1800 s, default 900), and put it back afterwards.
 
 Start the guard **from Explorer**, and close the Space Station page before each test: while that page
@@ -28,7 +28,7 @@ is open it holds the controller and X-Haptics is paused.
 
 | # | Steps | Expected |
 |---|---|---|
-| 2.1 | Change the Windows default output device | `default output changed`, then `RE-ARMED … default output device changed` about 2 s later |
+| 2.1 | Change the Windows default output device | `default output changed`, then about 2 s later `RE-ARMED … default output device changed`, or, with engine 5.0.2.4 while audio plays, `skip re-arm (default output device changed): the engine already follows the new device` |
 | 2.2 | Open the Space Station mapping page | `engine idle while Space Station page is attached -> not interfering`; no re-arm loop |
 | 2.3 | Re-arm once (tray) with the page open | Balloon *The Space Station page is holding the controller…* |
 | 2.4 | Select a game as the source, then close the game | `game exited but the engine is still bound to its process`, re-arm, `Source:` back to Mix |
@@ -104,19 +104,30 @@ Wait about 10 s per step (state must last `controllerNotifyDelaySec`, plus the e
 
 ### Engine capture behaviour
 
-- The engine binds a per-app profile only when it is **enabled while the engine sits on Mix**. Enabling a
-  second profile while one is active does nothing; disabling the active one drops to Mix.
-- Per-app capture includes the captured process's children, and the engine prefers the process that owns
-  the **foreground window**. Chrome: main browser process (focused) → audio heard; a renderer
-  (unfocused) → silence. Re-arming does not help.
-- BH3's embedded browser `ZFGameBrowser.exe` (BH3 → ZFGameBrowser → ZFGameBrowser) is **not** heard by the
-  BH3 capture (engine 0.000 while ZFGameBrowser peaked 0.09–0.23); Mix hears it.
-- Some games mute themselves when unfocused, so their capture is silent in the background.
-- `GET /api/v1/xhaptics/games` makes the engine rescan and drop to Mix for ~2 s. Polling it every 5 s
-  made the engine flap between the game and Mix (session revision ~500); the guard reads the engine's
-  games file instead.
+Measured with the guard closed:
+
+- It follows a change of the Windows default playback device by itself (no gap in capture).
+- It does **not** recover after an exclusive-mode player held the device (`0x88890004`), not even after the
+  device is released or changed; it stays Idle until something re-arms it.
+- It does not hear a game's child process either (BH3 → ZFGameBrowser web events: engine 0.00 while the
+  child peaked 0.07–0.24).
+- It keeps the bound game when another window is focused, returns to Mix ~3 s after the game exits, and
+  binds a catalog game with an enabled profile by itself (Zenless Zone Zero).
+- The engine process now has its own audio session that mirrors what it captures.
+- `runState` / `foreground` in its games file are not live (BH3 stayed `running` after exiting).
+
+PID reuse: Windows keeps a process's parent PID after the parent exits and later gives that PID to a new
+process. Chrome, started at sign-in by a launcher that had exited, showed up as a "child" of BH3 and the
+guard followed it. The guard now ignores a parent that started after its child.
+
+Found on earlier engines; the guard is still built around them:
+
+- The engine binds a per-app profile only when it is **enabled while the engine sits on Mix**, so a source
+  switch disables the running profiles, waits 1.2 s and enables the target.
+- `GET /api/v1/xhaptics/games` makes the engine rescan and drop to Mix for ~2 s, so the guard reads the
+  engine's games file instead of polling it.
 - After any re-arm the grip "activity gate" is closed until the next controller input.
-- The status reported a queue delay of about 6–32 ms.
+- Some games mute themselves when unfocused, so their capture is silent in the background.
 
 ### Antivirus scans
 

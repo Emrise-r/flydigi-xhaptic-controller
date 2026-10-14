@@ -14,6 +14,11 @@ namespace FlydigiHapticsGuard
 
         public static string Configuration(string scope) { return Configurations + "/" + Uri.EscapeDataString(scope); }
 
+        // engine 5.0.2.4+: the global profile as one complete config (GET, then PUT {expectedRevision, config})
+        public const string RealtimeAudioConfigurations = "/api/v1/xhaptics/realtime-audio/configurations";
+        public static string RealtimeAudioConfiguration(string scope) { return RealtimeAudioConfigurations + "/" + Uri.EscapeDataString(scope); }
+        public const string SingleConfigCapability = "realtime-audio-single-config-v1";
+
         // headers the web page sends; the engine checks them
         public const string ClientName = "space-station-web";
         public const string ProtocolVersion = "1";

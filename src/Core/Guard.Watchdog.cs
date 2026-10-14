@@ -76,12 +76,12 @@ namespace FlydigiHapticsGuard
         {
             var st = p.St;
             initialised = true; hidConnected = st.HidConnected; defaultDeviceId = p.DeviceId; lastSeq = st.FrameSeq;
-            Log.Write(string.Format("monitoring: hid={0} session={1} scope={2} capture={3} output={4}",
-                                    st.HidConnected, st.SessionState, st.Scope, st.CaptureRunning, st.OutputRunning));
+            Log.Write(string.Format("monitoring: engine={0} hid={1} session={2} scope={3} capture={4} output={5}",
+                                    engine.Version, st.HidConnected, st.SessionState, st.Scope, st.CaptureRunning, st.OutputRunning));
         }
 
         // A re-arm scheduled by rule 1 or 2 is due. Returns true when it re-armed.
-        bool RunScheduledKick(Poll p)
+        internal bool RunScheduledKick(Poll p)
         {
             if (!pendingKickAt.HasValue || p.Now < pendingKickAt.Value) return false;
             if (p.Now < nextKickAllowed)
@@ -97,12 +97,13 @@ namespace FlydigiHapticsGuard
             bool healthy = st.Running && st.CaptureRunning && st.OutputRunning && !st.HasError && st.HidOpened;
             if (!st.HidConnected) Log.Write("skip re-arm (" + reason + "): controller not connected");
             else if (p.Idle && p.WebAttached) Log.Write("skip re-arm (" + reason + "): Space Station page is holding the controller");
-            else if (healthy && reason == "controller connected") Log.Write("skip re-arm (" + reason + "): the engine already recovered on its own");
+            else if (healthy && reason == ReasonReconnect) Log.Write("skip re-arm (" + reason + "): the engine already recovered on its own");
+            else if (reason == ReasonDeviceChanged && EngineFollowsDevice(p)) Log.Write("skip re-arm (" + reason + "): the engine already follows the new device");
             else { Kick(reason, false); return true; }
             return false;
         }
 
-        void Schedule(DateTime at, string reason)
+        internal void Schedule(DateTime at, string reason)
         {
             if (pendingKickAt.HasValue && pendingKickAt.Value > at) return;
             pendingKickAt = at; pendingReason = reason;

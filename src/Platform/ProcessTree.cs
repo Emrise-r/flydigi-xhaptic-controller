@@ -37,6 +37,7 @@ namespace FlydigiHapticsGuard
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32FirstW(IntPtr snap, ref PROCESSENTRY32 e);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32NextW(IntPtr snap, ref PROCESSENTRY32 e);
 
+        // pid -> parent pid of every running process
         public static Dictionary<int, int> ParentMap()
         {
             var map = new Dictionary<int, int>();
@@ -49,7 +50,43 @@ namespace FlydigiHapticsGuard
                     do map[(int)e.th32ProcessID] = (int)e.th32ParentProcessID; while (Process32NextW(snap, ref e));
             }
             finally { CloseHandle(snap); }
-            return map;
+            var startTimes = new Dictionary<int, long>();
+            return WithoutReusedParents(map, pid =>
+            {
+                long t;
+                if (!startTimes.TryGetValue(pid, out t)) startTimes[pid] = t = StartTime(pid);
+                return t;
+            });
+        }
+
+        // Windows keeps a process's parent PID after the parent exits, and may give that PID to a new process.
+        // A "parent" that started after its child is such a reuse (e.g. Chrome started by a launcher that has
+        // exited, whose PID now belongs to a game), so the link is dropped. startTime returns 0 when unknown.
+        internal static Dictionary<int, int> WithoutReusedParents(Dictionary<int, int> parents, Func<int, long> startTime)
+        {
+            var result = new Dictionary<int, int>();
+            foreach (var kv in parents)
+            {
+                long child = startTime(kv.Key), parent = startTime(kv.Value);
+                if (child > 0 && parent > 0 && parent > child) continue;
+                result[kv.Key] = kv.Value;
+            }
+            return result;
+        }
+
+        [DllImport("kernel32.dll")] static extern bool GetProcessTimes(IntPtr h, out long creation, out long exit, out long kernel, out long user);
+
+        // process creation time (FILETIME ticks), 0 when the process is gone or not accessible
+        static long StartTime(int pid)
+        {
+            IntPtr h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (h == IntPtr.Zero) return 0;
+            try
+            {
+                long creation, exit, kernel, user;
+                return GetProcessTimes(h, out creation, out exit, out kernel, out user) ? creation : 0;
+            }
+            finally { CloseHandle(h); }
         }
 
         public static bool IsDescendant(int pid, int ancestor, Dictionary<int, int> parents)

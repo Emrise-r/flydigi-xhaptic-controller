@@ -13,12 +13,20 @@ The xHaptics Engine (`C:\Program Files\Flydigi\Engine\xHaptics Engine.exe`) runs
 2. turns it into grip/trigger motor frames,
 3. sends them to the controller over HID.
 
-The "toggle X-Haptics" switch on the web page is `PATCH /api/v1/xhaptics/configurations/{scope}` with
-`enabled: false` then `true`, which rebuilds the capture pipeline ("re-arm"). The guard calls the same
-API and authenticates the way the web page does (an `Origin` header to `GET /api/engine/version`
-returns an access token).
+The "toggle X-Haptics" switch is `enabled: false` then `true` on a profile, which rebuilds the capture
+pipeline ("re-arm"). The guard authenticates the way the Space Station page does (an `Origin` header to
+`GET /api/engine/version` returns an access token and the engine's capabilities) and then:
 
-The API is undocumented and may change with Flydigi updates.
+| Profile | How the guard switches it |
+|---|---|
+| `global` | `GET` then `PUT /api/v1/xhaptics/realtime-audio/configurations/global` with `{expectedRevision, config}`: the complete config, only `enabled` changed, so the Grip/Trigger choices made in Space Station stay as they are |
+| a game/app | `PATCH /api/v1/xhaptics/configurations/{gameId}` with `{expectedRevision, enabled, selectedBackend, ui}` |
+
+The enabled flags of all profiles are read from `GET /api/v1/xhaptics/configurations`. The log line
+`monitoring: engine=…` shows which engine version the guard is talking to.
+
+The API is undocumented and changes with Flydigi updates. This version needs engine 5.0.2.4 or newer;
+use v1.0.5 with older engines.
 
 ## Master switch
 
@@ -33,7 +41,8 @@ The API is undocumented and may change with Flydigi updates.
 X-Haptics is re-armed when:
 
 - the controller (re)connects, unless the engine already recovered by itself;
-- the Windows default playback device changes;
+- the Windows default playback device changes, unless the engine already follows the new device (it
+  usually does: while audio plays the guard sees the engine hear it and skips the re-arm);
 - the engine reports that capture or output stopped, or an error (for example after a player released
   WASAPI exclusive mode);
 - audio is playing but the engine's system capture is frozen or only hears silence;

@@ -60,6 +60,21 @@ namespace FlydigiHapticsGuard.Tests
         }
 
         [Test]
+        static void Parent_links_to_a_reused_pid_are_dropped()
+        {
+            // 29276 (Chrome, started at 100) still names 28940 as parent; 28940 now is a game started at 500
+            var raw = new Dictionary<int, int> { { 29276, 28940 }, { 31272, 29276 }, { 28940, 1 }, { 77, 99 } };
+            var start = new Dictionary<int, long> { { 29276, 100 }, { 31272, 110 }, { 28940, 500 }, { 1, 10 } };
+            var map = ProcessTree.WithoutReusedParents(raw, pid => { long t; return start.TryGetValue(pid, out t) ? t : 0; });
+
+            Assert.False(map.ContainsKey(29276), "Chrome is not the game's child");
+            Assert.False(ProcessTree.IsDescendant(31272, 28940, map), "Chrome tab is not under the game");
+            Assert.True(ProcessTree.IsDescendant(31272, 29276, map), "real parent kept");
+            Assert.True(map.ContainsKey(28940), "game's own parent kept");
+            Assert.True(map.ContainsKey(77), "unknown start times: link kept");
+        }
+
+        [Test]
         static void TreeHasSession_includes_the_process_and_its_children_only()
         {
             Assert.True(ProcessTree.TreeHasSession(10, new HashSet<int> { 30 }, Parents), "child plays");

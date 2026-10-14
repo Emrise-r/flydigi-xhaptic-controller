@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -59,7 +60,18 @@ namespace FlydigiHapticsGuard
             var v = Obj(json.DeserializeObject(Send("GET", EngineApi.Version, null, false)));
             token = Str(v, "accessToken");
             if (string.IsNullOrEmpty(token)) throw new EngineException(0, "bootstrap returned no access token");
+            Version = Str(v, "version") ?? "unknown";
+            var caps = At(v, "capabilities") as object[] ?? new object[0];
+            capabilities = new HashSet<string>(caps.Select(c => Convert.ToString(c)));
         }
+
+        HashSet<string> capabilities = new HashSet<string>();
+
+        // engine version reported at the last bootstrap ("5.0.2.4"), null before the first call
+        public string Version { get; private set; }
+
+        // engine 5.0.2.4+: the global X-Haptics profile is one "single config" saved with PUT; the old PATCH is gone (410)
+        bool SingleGlobalConfig { get { return capabilities.Contains(EngineApi.SingleConfigCapability); } }
 
         string Call(string method, string path, string body)
         {
@@ -86,6 +98,11 @@ namespace FlydigiHapticsGuard
         public Dictionary<string, object> Post(string path, object body)
         {
             return Obj(json.DeserializeObject(Call("POST", path, json.Serialize(body))));
+        }
+
+        public Dictionary<string, object> Put(string path, object body)
+        {
+            return Obj(json.DeserializeObject(Call("PUT", path, json.Serialize(body))));
         }
 
         // ---- typed calls
@@ -115,15 +132,41 @@ namespace FlydigiHapticsGuard
             return Str(Post(EngineApi.CustomGames, body), "game.gameId");
         }
 
-        // PATCH one profile's enabled flag; retried once when another client changed the revision (409).
+        // Sets one profile's enabled flag; retried once when another client changed the revision (409).
         public void SetEnabled(XHapticsConfigs configs, string scope, bool enabled)
         {
+            if (scope == EngineApi.GlobalScope && SingleGlobalConfig) { SetGlobalEnabled(enabled); return; }
             var profile = configs.Find(scope);
             if (profile == null) return;
-            for (int attempt = 0; attempt < 2; attempt++)
+            RetryOnConflict(delegate
             {
                 long revision = Configs().Revision;
-                try { Patch(EngineApi.Configuration(scope), XHapticsConfigs.PatchBody(profile, enabled, revision)); return; }
+                Patch(EngineApi.Configuration(scope), XHapticsConfigs.PatchBody(profile, enabled, revision));
+            });
+        }
+
+        // Engine 5.0.2.4+: read the complete global config and save it back with the new enabled flag.
+        void SetGlobalEnabled(bool enabled)
+        {
+            string path = EngineApi.RealtimeAudioConfiguration(EngineApi.GlobalScope);
+            RetryOnConflict(delegate
+            {
+                var snapshot = Get(path);
+                var config = Obj(At(snapshot, "config"));
+                if (config == null) throw new EngineException(0, "the engine returned no global configuration");
+                config["enabled"] = enabled;
+                var body = new Dictionary<string, object>();
+                body["expectedRevision"] = Long(snapshot, "revision");
+                body["config"] = config;
+                Put(path, body);
+            });
+        }
+
+        static void RetryOnConflict(Action write)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try { write(); return; }
                 catch (EngineException ex) { if (ex.Status != 409 || attempt == 1) throw; }
             }
         }

@@ -116,6 +116,41 @@ namespace FlydigiHapticsGuard.Tests
                 Assert.Null(g.EngineDeaf(At(s, perApp, 0.5f)), "per-app capture at " + s);
         }
 
+        // a poll right after a device change: Windows plays `systemPeak`, the engine hears `enginePeak`
+        static Poll Playing(Guard g, int second, float systemPeak, double enginePeak, string source = "system")
+        {
+            var st = Healthy(); st.FrameSeq = 100 + second; st.EnginePeak = enginePeak; st.CaptureSource = source;
+            var p = At(second, st, systemPeak);
+            g.CaptureFrozen(p);   // keeps the frame counter bookkeeping that EngineFollowsDevice reads
+            return p;
+        }
+
+        [Test]
+        static void Device_change_is_skipped_only_when_the_engine_hears_the_new_device()
+        {
+            var g = NewGuard();
+            Assert.True(g.EngineFollowsDevice(Playing(g, 0, 0.3f, 0.2)), "engine hears the audio");
+            Assert.False(g.EngineFollowsDevice(Playing(g, 1, 0.3f, 0.0)), "engine hears silence (still on the old device)");
+            Assert.False(g.EngineFollowsDevice(Playing(g, 2, 0.0f, 0.0)), "nothing plays: cannot tell");
+            Assert.False(g.EngineFollowsDevice(Playing(g, 3, 0.3f, 0.2, "process")), "per-app capture: not comparable");
+
+            var stuck = At(10, Playing(g, 4, 0.3f, 0.2).St, 0.3f);   // same frame counter 6 s later
+            g.CaptureFrozen(stuck);
+            Assert.False(g.EngineFollowsDevice(stuck), "frame counter frozen");
+        }
+
+        [Test]
+        static void Scheduled_device_change_rearm_is_skipped_when_followed()
+        {
+            var g = NewGuard();
+            var p = Playing(g, 0, 0.3f, 0.2);
+            g.Schedule(p.Now, Guard.ReasonDeviceChanged);
+            Assert.False(g.RunScheduledKick(p), "no re-arm");
+            Assert.Contains("skip re-arm (default output device changed): the engine already follows the new device",
+                            System.IO.File.ReadAllText(Log.FilePath));
+            Assert.False(g.RunScheduledKick(Playing(g, 1, 0.3f, 0.2)), "nothing scheduled any more");
+        }
+
         [Test]
         static void Capture_bound_to_an_exited_process_is_orphaned()
         {
