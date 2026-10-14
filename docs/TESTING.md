@@ -140,6 +140,7 @@ Found on earlier engines; the guard is still built around them:
 | v1.0.3 | clean | [4/67](https://www.virustotal.com/gui/file/b49af9453331bfcc9469d32d8d78d635f858b9c6e7d6fb1ee01c7501e5daa37c): Bkav, Elastic, SecureAge APEX, Trapmine (generic ML); major engines clean |
 | v1.0.4 (refactor, unit tests) | clean | [5/71](https://www.virustotal.com/gui/file/80d9dc7d13efe2704b58f42c2b351c1f121bb7048a9df91c94b010a66903edc5): APEX, Bkav, Elastic, MaxSecure, Trapmine (generic ML/heuristic); Microsoft, Kaspersky, ESET, BitDefender, Avast, Malwarebytes, Symantec, CrowdStrike, Sophos clean |
 | v1.0.5 (battery level fix) | clean | [5/71](https://www.virustotal.com/gui/file/f4006921fcd4de0043bcfdbf78b9828d23a5c93af7e27e61c62e131a1479a6a1): the same five as v1.0.4 (APEX, Bkav, Elastic, MaxSecure, Trapmine); major engines clean |
+| v1.0.6 (engine 5.0.2.4 support) | clean | [5/68](https://www.virustotal.com/gui/file/691f900613e25ce12ea5777c1663f4c31b1b7202264b0dc0c855f4f5096ec1b9): the same five as v1.0.4 (APEX, Bkav, Elastic, MaxSecure, Trapmine); major engines clean |
 
 No engine names a malware family; the hits are generic ML/heuristic verdicts typical for small unsigned
 tools that register global hotkeys and enumerate processes.
