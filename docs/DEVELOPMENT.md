@@ -66,6 +66,8 @@ The defaults in `Settings.DefaultConfig` and `config/config.default.json` must s
 | `src/**/*.cs` | yes | source |
 | `tests/*.cs`, `test.cmd` | yes | unit tests |
 | `build.cmd`, `HapticsGuard.csproj` | yes | build script / IDE project |
+| `assets/app.ico`, `assets/app-off.ico`, `assets/icon-256.png` | yes | app icon (embedded in the exe; grey one = tray while OFF), preview |
+| `tools/make-icon.ps1` | yes | draws the icons from simple shapes (no third-party artwork); run it after changing the design |
 | `app.manifest` | yes | manifest embedded in the exe (`asInvoker`: runs as the current user, never asks for admin) |
 | `config/config.default.json` | yes | default settings |
 | `README.md`, `DIAGRAM.md`, `docs/` | yes | documentation and screenshots |
@@ -80,5 +82,6 @@ The defaults in `Settings.DefaultConfig` and `config/config.default.json` must s
 1. Bump the version in `src/Properties/AssemblyInfo.cs` and `app.manifest`.
 2. Run `test.cmd`, build from a clean tree, run through [TESTING.md](TESTING.md).
 3. Scan the exe with Windows Defender and VirusTotal.
-4. Zip `HapticsGuard.exe`, `config/config.default.json`, `README.md`, `LICENSE` (forward-slash paths).
+4. Zip `HapticsGuard.exe`, `config/config.default.json`, `README.md`, `LICENSE` (forward-slash paths). Build the
+   release exe with `build.cmd` (or the same `/win32icon` and `/resource` options) so it carries the icons.
 5. Publish the release with the SHA-256 of both assets.

@@ -134,9 +134,7 @@ namespace FlydigiHapticsGuard
                     scope = EngineApi.GlobalScope;
                 if (!configs.IsEnabled(scope))
                 {
-                    // logged once by TurnedOffElsewhere() for the global case; other scopes still get a line
-                    if (manual || scope != EngineApi.GlobalScope || !turnedOffNoticed)
-                        Log.Write("skip re-arm (" + reason + "): X-Haptics is turned off in scope '" + scope + "'");
+                    Log.Write("skip re-arm (" + reason + "): X-Haptics is turned off in scope '" + scope + "'");
                     if (manual) Notify("X-Haptics is turned off in Space Station" + TurnOnHint() + ".", true);
                     nextKickAllowed = now.AddSeconds(30);
                     return;

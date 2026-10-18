@@ -38,17 +38,22 @@ Screenshots: see README › *Mapping the APEX back buttons*.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ON: auto-mode.txt missing or "on"
-    [*] --> OFF: auto-mode.txt = "off"
+    [*] --> ON: engine global profile enabled
+    [*] --> OFF: engine global profile disabled
+    note left of ON
+        At start and every 3 s the switch follows
+        the engine (Space Station can change it).
+        auto-mode.txt only while the engine is unreachable.
+    end note
 
-    ON --> OFF: toggle
+    ON --> OFF: toggle (engine is on)
     note right of OFF
         Disable running scope + global
         Remember them in auto-mode.txt
         No automatic re-arm
     end note
 
-    OFF --> ON: toggle
+    OFF --> ON: toggle (engine is off)
     note right of ON
         Re-enable remembered scopes
         (or re-arm if already enabled)

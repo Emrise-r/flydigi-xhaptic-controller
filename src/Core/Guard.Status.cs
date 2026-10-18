@@ -21,10 +21,6 @@ namespace FlydigiHapticsGuard
         long lastWriteFailures = -1;
         bool lowBatteryNotified;
 
-        // X-Haptics turned off outside the guard (Space Station toggle) while the master switch is ON.
-        // The guard respects that choice and does not turn it back on; it only says so, once.
-        bool turnedOffNoticed;
-
         // Called by the watchdog with the status it already read, or with null (reads it) while the switch is OFF.
         void RefreshInfo(XHapticsStatus status)
         {
@@ -35,7 +31,6 @@ namespace FlydigiHapticsGuard
                 catch (EngineException) { ShowEngineNotRunning(); return; }
             }
 
-            if (status.Running) turnedOffNoticed = false;
             SourceInfo = "Source: " + DescribeSource(status) + DescribeFollowing();
             UpdateController(status);
         }
@@ -59,7 +54,6 @@ namespace FlydigiHapticsGuard
             if (!autoEnabled) return "X-Haptics off";
             if (exclusiveHold) return "audio device in exclusive use by another app (exclusive/ASIO player): haptics resume when it is released";
             if (WebUiAttached()) return "paused (Space Station page is open)";
-            if (TurnedOffElsewhere()) return "X-Haptics off (turned off in Space Station)" + TurnOnHint();
             return "X-Haptics idle";
         }
 
@@ -79,27 +73,7 @@ namespace FlydigiHapticsGuard
 
         string TurnOnHint()
         {
-            return Settings.HotkeyToggle.Length > 0 ? ": press " + Settings.HotkeyToggle + " twice to turn it on" : "";
-        }
-
-        // Only called while the engine is not running, so the extra request costs nothing in normal use.
-        bool TurnedOffElsewhere()
-        {
-            if (!autoEnabled) return false;
-            bool off;
-            try
-            {
-                var configs = engine.Configs();
-                off = configs.Has(EngineApi.GlobalScope) && !configs.IsEnabled(EngineApi.GlobalScope);
-            }
-            catch { return false; }
-            if (off && !turnedOffNoticed)
-            {
-                turnedOffNoticed = true;
-                Log.Write("X-Haptics is turned off in Space Station while the switch is ON; leaving it off");
-                Notify("X-Haptics was turned off in Space Station" + TurnOnHint() + ".", true);
-            }
-            return off;
+            return Settings.HotkeyToggle.Length > 0 ? ": press " + Settings.HotkeyToggle + " to turn it on" : "";
         }
 
         // ---- controller line, balloons and log

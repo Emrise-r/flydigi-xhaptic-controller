@@ -20,9 +20,10 @@ is open it holds the controller and X-Haptics is paused.
 |---|---|---|
 | 1.1 | Press the toggle hotkey (M2) while ON | Balloon *X-Haptics OFF…*; log `switch OFF`, `X-Haptics turned OFF (scopes: …)`; no automatic re-arm afterwards |
 | 1.2 | Press it again | Balloon *X-Haptics ON…*; log `switch ON`, `X-Haptics turned ON (scopes: …)`, `monitoring: …` |
-| 1.3 | Restart the guard while OFF | Stays OFF (`guard … started, switch OFF`) |
+| 1.3 | Restart the guard while OFF | Stays OFF; if X-Haptics was turned on elsewhere meanwhile: `switch ON: X-Haptics is on in the engine (at start)` |
 | 1.4 | Press M2 while the engine is stopped | Balloon says the engine is not running; the switch keeps its previous state (`switch failed`) |
-| 1.5 | Turn X-Haptics off in Space Station while ON | One balloon *X-Haptics was turned off in Space Station: press … twice*; `Source:` line says so; the guard does not turn it back on |
+| 1.5 | Turn X-Haptics off in Space Station while ON | ~3–6 s later `switch OFF: X-Haptics is off in the engine (changed outside the guard…)`, one balloon, grey tray icon; one press of M2 turns it on again |
+| 1.6 | Turn it on in Space Station while the guard is OFF | `switch ON: … (changed outside the guard…)`, coloured tray icon, watchdog active |
 
 ## 2. Watchdog
 

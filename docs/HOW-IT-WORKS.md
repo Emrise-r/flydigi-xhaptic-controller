@@ -33,8 +33,12 @@ use v1.0.5 with older engines.
 - **OFF**: disables the running profile and `global`, remembers which ones in `data\auto-mode.txt`, and
   stops the watchdog.
 - **ON**: re-enables exactly those profiles (or re-arms if they are already on) and starts the watchdog.
-- If X-Haptics is switched off elsewhere (Space Station) while ON, the guard respects it: it shows
-  `X-Haptics off (turned off in Space Station)` and one balloon, and does not turn it back on.
+- The real state is the engine's `global` profile, which Space Station or an engine update can change too:
+  - at start the guard takes the engine's state (`data\auto-mode.txt` only while the engine cannot be
+    reached), logged as `switch ON: X-Haptics is on in the engine (at start)`;
+  - a press switches to the opposite of the engine's current state, so one press is always enough;
+  - every 3 s it compares again and follows a change made elsewhere, with one balloon. It ignores readings
+    taken during its own re-arms and source switches, and a change must be seen twice in a row.
 
 ## Watchdog (while ON)
 

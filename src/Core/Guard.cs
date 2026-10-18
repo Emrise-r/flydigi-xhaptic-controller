@@ -67,21 +67,8 @@ namespace FlydigiHapticsGuard
             {
                 try
                 {
-                    int sw = pendingSwitch;
-                    if (sw != 0)
-                    {
-                        pendingSwitch = 0;
-                        ResetMonitor();
-                        try { ApplySwitch(sw == 1); }
-                        catch (Exception ex)
-                        {
-                            // nothing was switched: keep the previous state (menu + auto-mode.txt stay consistent)
-                            autoEnabled = sw != 1;
-                            LastAction = EngineDown(ex) ? EngineProblemShort() : "Switch failed";
-                            Log.Write("switch failed: " + Trim(ex.Message));
-                            Notify("X-Haptics was not switched " + (sw == 1 ? "on" : "off") + ". " + Explain(ex), true);
-                        }
-                    }
+                    if (toggleRequested) { toggleRequested = false; HandleToggle(); }
+                    SyncSwitchWithEngine();
                     if (manualKick)
                     {
                         manualKick = false;

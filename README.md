@@ -128,6 +128,7 @@ The mapped button no longer acts as a controller button in games.
 
 ## Tray menu
 
+- **Tray icon**: coloured while X-Haptics is on and watched, grey while the master switch is OFF.
 - **Source / Controller**: what is being captured (an app, `Mix (all apps)`, `X-Haptics off`, …) and
   the controller state (`connected`, battery, `haptics asleep`, `not connected`).
 - **X-Haptics on + auto re-arm**: the master switch.
@@ -145,7 +146,8 @@ Command line: `HapticsGuard.exe --toggle | --cycle | --kick | --reload`.
 - **Haptics fall asleep** after a while without controller input (Space Station's *Real-time audio auto
   sleep*) and after every re-arm. Press any controller button; the back-button hotkeys do not wake them.
 - **The Space Station page pauses X-Haptics** while it is open. Close it when you are done.
-- **Turned off in Space Station?** The guard leaves it off and says so; press the master switch twice.
+- **Switched on or off in Space Station?** The guard follows the engine within a few seconds (one balloon)
+  and its master switch always does the opposite of what the engine currently does.
 - **Browsers** (Chrome, Edge…) only work as a per-app source while their window is focused; use Mix.
 - **Games with embedded browsers** (BH3 web events): the guard follows the child process automatically.
 - **Exclusive / bit-perfect players**: see the warning below.

@@ -12,6 +12,7 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <LangVersion>5</LangVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
     <CodePage>65001</CodePage>
     <!-- the exe must sit next to config\ and data\ -->
     <OutputPath>.\</OutputPath>
@@ -46,6 +47,8 @@
   <ItemGroup>
     <None Include="app.manifest" />
     <None Include="config\config.default.json" />
+    <EmbeddedResource Include="assets\app.ico"><LogicalName>FlydigiHapticsGuard.app.ico</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="assets\app-off.ico"><LogicalName>FlydigiHapticsGuard.app-off.ico</LogicalName></EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

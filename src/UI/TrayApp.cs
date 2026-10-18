@@ -23,8 +23,6 @@ namespace FlydigiHapticsGuard
         {
             ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
             string configError = Settings.Load();
-            Icon icon = SystemIcons.Application;
-            try { if (File.Exists(Settings.EngineExePath)) icon = Icon.ExtractAssociatedIcon(Settings.EngineExePath); } catch { }
 
             guard = new Guard(Notify, AutoFlag.Load());
 
@@ -78,7 +76,7 @@ namespace FlydigiHapticsGuard
             };
             menu.Items.Add("Exit", null, delegate { ExitThread(); });
 
-            tray = new NotifyIcon { Icon = icon, Text = "X-Haptics Guard", ContextMenuStrip = menu, Visible = true };
+            tray = new NotifyIcon { Icon = TrayIcon(guard.AutoEnabled), Text = "X-Haptics Guard", ContextMenuStrip = menu, Visible = true };
             tray.DoubleClick += delegate { OpenUi(); };
 
             hotkey = new HotkeyWindow();
@@ -113,6 +111,7 @@ namespace FlydigiHapticsGuard
             {
                 string text = "X-Haptics Guard [" + (guard.AutoEnabled ? "ON" : "OFF") + "] " + guard.LastAction;
                 tray.Text = text.Length > 63 ? text.Substring(0, 63) : text;
+                UpdateTrayIcon();   // a failed switch puts the previous state back
             };
             uiTimer.Start();
         }
@@ -129,9 +128,28 @@ namespace FlydigiHapticsGuard
             return delegate { ui.Post(delegate { action(); }, null); };
         }
 
+        // Coloured icon while X-Haptics is on, grey while the master switch is OFF (assets\app.ico / app-off.ico,
+        // embedded by build.cmd and the .csproj). Loaded at the tray size so it stays sharp.
+        static readonly Icon OnIcon = LoadIcon("app.ico"), OffIcon = LoadIcon("app-off.ico");
+
+        static Icon LoadIcon(string name)
+        {
+            using (var s = typeof(TrayApp).Assembly.GetManifestResourceStream("FlydigiHapticsGuard." + name))
+                return s == null ? SystemIcons.Application : new Icon(s, SystemInformation.SmallIconSize);
+        }
+
+        static Icon TrayIcon(bool on) { return on ? OnIcon : OffIcon; }
+
+        void UpdateTrayIcon()
+        {
+            var icon = TrayIcon(guard.AutoEnabled);
+            if (tray.Icon != icon) tray.Icon = icon;
+        }
+
         void ToggleAuto()
         {
             autoItem.Checked = guard.ToggleAuto();   // the guard thread reports the result with a balloon
+            UpdateTrayIcon();
         }
 
         // Lists processes playing audio + running registered games. Checked = in the switch-source cycle.

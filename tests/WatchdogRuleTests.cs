@@ -152,6 +152,28 @@ namespace FlydigiHapticsGuard.Tests
         }
 
         [Test]
+        static void Master_switch_follows_the_engine()
+        {
+            bool? candidate = null;
+            Assert.Equal((bool?)true, Guard.FollowEngine(true, false, true, false, ref candidate), "first reading after start: follow at once");
+
+            candidate = null;
+            Assert.Null(Guard.FollowEngine(false, true, false, false, ref candidate), "a change is not followed on the first sight");
+            Assert.Equal((bool?)false, Guard.FollowEngine(false, true, false, false, ref candidate), "confirmed by a second reading");
+
+            candidate = null;
+            Assert.Null(Guard.FollowEngine(false, true, false, false, ref candidate), "seen once");
+            Assert.Null(Guard.FollowEngine(true, true, false, false, ref candidate), "back to equal: forgotten");
+            Assert.Null(Guard.FollowEngine(false, true, false, false, ref candidate), "seen once again, not twice in a row");
+
+            candidate = null;
+            Assert.Null(Guard.FollowEngine(false, true, false, true, ref candidate), "during the guard's own re-arm");
+            Assert.Null(Guard.FollowEngine(false, true, false, true, ref candidate), "still in grace");
+            Assert.Null(Guard.FollowEngine(null, true, true, false, ref candidate), "engine unreachable");
+            Assert.Null(Guard.FollowEngine(true, true, true, false, ref candidate), "already equal");
+        }
+
+        [Test]
         static void Capture_bound_to_an_exited_process_is_orphaned()
         {
             var g = NewGuard();
