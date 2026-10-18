@@ -146,6 +146,7 @@ Found on earlier engines; the guard is still built around them:
 | v1.0.5 (battery level fix) | clean | [5/71](https://www.virustotal.com/gui/file/f4006921fcd4de0043bcfdbf78b9828d23a5c93af7e27e61c62e131a1479a6a1): the same five as v1.0.4 (APEX, Bkav, Elastic, MaxSecure, Trapmine); major engines clean |
 | v1.0.6 (engine 5.0.2.4 support) | clean | [5/68](https://www.virustotal.com/gui/file/691f900613e25ce12ea5777c1663f4c31b1b7202264b0dc0c855f4f5096ec1b9): the same five as v1.0.4 (APEX, Bkav, Elastic, MaxSecure, Trapmine); major engines clean |
 | v1.0.7 (battery byte decoding) | clean | [4/70](https://www.virustotal.com/gui/file/b26317c1e044782f28e684cd83bdf22e44df55932c1f2338fa26cc605f685f05): APEX, Bkav, Elastic, Trapmine (generic ML); major engines clean |
+| v1.0.8 (own icon, switch follows the engine) | clean | [4/68](https://www.virustotal.com/gui/file/e60e931fdcad12901b2e623c1bdaad3bf47b25b62702bf14e5a38c122bff64a4): APEX, Elastic, MaxSecure, Trapmine (generic ML); major engines clean |
 
 No engine names a malware family; the hits are generic ML/heuristic verdicts typical for small unsigned
 tools that register global hotkeys and enumerate processes.

@@ -13,8 +13,8 @@ and lets you control X-Haptics from the controller's back buttons:
 ![Tray menu with the Audio sources submenu](docs/images/tray-menu.png)
 
 **Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
-([v1.0.7](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.7)). Get
-`HapticsGuard-v1.0.7.zip`, extract it anywhere and run `HapticsGuard.exe`.
+([v1.0.8](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.8)). Get
+`HapticsGuard-v1.0.8.zip`, extract it anywhere and run `HapticsGuard.exe`.
 
 > **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
 > make the controller vibrate by itself. Install the engine with Flydigi Space Station first.
@@ -64,9 +64,9 @@ To build it yourself: run `build.cmd` (uses the C# compiler that ships with Wind
 [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 **Antivirus:** the exe is small, unsigned, registers global hotkeys and lists processes, so a few engines
-flag it with generic machine-learning verdicts (v1.0.7: Defender clean,
-[VirusTotal](https://www.virustotal.com/gui/file/b26317c1e044782f28e684cd83bdf22e44df55932c1f2338fa26cc605f685f05)
-4/70, major engines clean). Build it from source if you prefer.
+flag it with generic machine-learning verdicts (v1.0.8: Defender clean,
+[VirusTotal](https://www.virustotal.com/gui/file/e60e931fdcad12901b2e623c1bdaad3bf47b25b62702bf14e5a38c122bff64a4)
+4/68, major engines clean). Build it from source if you prefer.
 
 ---
 
