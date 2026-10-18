@@ -59,7 +59,7 @@ namespace FlydigiHapticsGuard
                 engineReachable = false;
                 return null;
             }
-            if (!engineReachable) { Log.Write("engine reachable"); LastAction = "AUTO on"; }
+            if (!engineReachable) { Log.Write("engine reachable (" + engine.Version + ")"); LastAction = "AUTO on"; }
             engineReachable = true;
 
             RefreshInfo(p.St);

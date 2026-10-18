@@ -19,7 +19,7 @@ and lets you control X-Haptics from the controller's back buttons:
 > **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
 > make the controller vibrate by itself. Install the engine with Flydigi Space Station first.
 >
-> **Tested on:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition, xHaptics Engine 5.0.2.4, Windows 11.
+> **Tested on:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition, xHaptics Engine 5.0.2.4 and 5.0.2.6, Windows 11.
 > Other Flydigi controllers that use the same engine may work but are untested.
 >
 > **Engine version:** v1.0.6 and later are made for xHaptics Engine **5.0.2.4 or newer** (the engine changed

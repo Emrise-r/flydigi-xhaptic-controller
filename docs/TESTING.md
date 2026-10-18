@@ -6,7 +6,7 @@ is covered by the unit tests: run `test.cmd` (see [DEVELOPMENT.md](DEVELOPMENT.m
 manual case can be checked from the tray menu status lines and `data\guard.log` (tray › *View log*).
 
 **Test setup:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition with its charging dock, xHaptics Engine
-5.0.2.4, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep
+5.0.2.4 and 5.0.2.6, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep
 cases quickly (the allowed range is 5–1800 s, default 900), and put it back afterwards.
 
 Start the guard **from Explorer**, and close the Space Station page before each test: while that page
@@ -97,10 +97,13 @@ Wait about 10 s per step (state must last `controllerNotifyDelaySec`, plus the e
 - The dock carries USB data like the cable.
 - Windows cannot tell cable/dock from wireless: the controller's USB device `VID_37D7&PID_2502\FLYDIGI_APEX_6`
   is also presented by the wireless receiver (`VID_37D7&PID_6001`) while the controller is linked.
-- `batteryLevel` is a 0–10 scale (Space Station shows it as `level/10`), not a percentage: 10 = full.
-  Out-of-range values (22, 23) show up now and then and are ignored, as the Space Station page does.
-- `chargingStatus` stayed 0 while charging. `connectionMode` differs between links: at the same moment
-  `mode=0` over USB reported `batteryLevel` 22 (out of range) and `mode=1` wireless reported 8 (80 %).
+- `batteryLevel` is the controller's raw battery byte, passed on undecoded. Space Station splits it: the low
+  4 bits are the level 0–10 (shown as `level/10`), the high 4 bits the charge state (1 charging, 2 full).
+  Examples: `6` = 60 %, `0x15` (21) = 50 % and charging. The engine's own `chargingStatus` field stays 0.
+- The level matches the controller screen and is refreshed slowly (6 → 5 → 4 over ~2 h of play, no
+  reconnect needed). The charging flag only shows up for a few minutes after charging starts (`0x14`,
+  `0x13`, `0x15`, each followed by a plain value a few minutes later while still on the dock), so "not
+  charging" in the tray does not mean the controller is off the charger.
 
 ### Engine capture behaviour
 

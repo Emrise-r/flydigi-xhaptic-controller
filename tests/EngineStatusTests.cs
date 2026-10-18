@@ -113,12 +113,25 @@ namespace FlydigiHapticsGuard.Tests
             Assert.Null(s.UsbId, "usb id");
         }
 
+        static XHapticsStatus Battery(int raw) { return Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':" + raw + ",'chargingStatus':0}}}"); }
+
         [Test]
-        static void Battery_level_is_tenths()
+        static void Battery_byte_is_level_and_charge_state()
         {
-            Assert.Equal(100L, Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':10}}}").BatteryPercent, "10/10");
-            Assert.Equal(0L, Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':0}}}").BatteryPercent, "0/10");
-            Assert.Equal(-1L, Parse("{'hid':{'controllerDeviceInfo':{'batteryLevel':23}}}").BatteryPercent, "out of range");
+            var full = Battery(10);
+            Assert.Equal(100L, full.BatteryPercent, "10/10");
+            Assert.False(full.IsCharging, "not charging");
+
+            var charging = Battery(0x15);   // 21: what the engine reported on the dock with the controller at ~60 %
+            Assert.Equal(5L, charging.BatteryLevel, "level");
+            Assert.Equal(50L, charging.BatteryPercent, "percent");
+            Assert.True(charging.IsCharging, "charging");
+
+            Assert.True(Battery(0x2A).IsFull, "0x2A = 10/10, fully charged");
+            Assert.Equal(0L, Battery(0).BatteryPercent, "0/10");
+            Assert.Equal(-1L, Battery(0x0B).BatteryPercent, "level 11 is invalid");
+            Assert.Equal(-1L, Parse("{}").BatteryPercent, "missing");
+            Assert.False(Parse("{}").IsCharging, "missing: not charging");
         }
 
         [Test]

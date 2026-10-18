@@ -20,7 +20,7 @@ namespace FlydigiHapticsGuard
 
         // controller (HID)
         public bool HidConnected, HidOpened, HidPaused;
-        public long BatteryLevel;          // 0-10 (Space Station shows "level/10"); other values are invalid readings
+        public long BatteryByte;           // the controller's raw battery byte, see BatteryLevel / ChargeState
         public long Charging, ConnectionMode, WriteFailures;
         public string HidError;
         public string UsbId;               // "VID_37D7&PID_2502", or null when the engine does not say
@@ -32,6 +32,13 @@ namespace FlydigiHapticsGuard
         public bool ProcessCapture { get { return CaptureSource == "process"; } }
         public bool HasError { get { return CaptureError.Length > 0 || OutputError.Length > 0; } }
         // battery in percent (10 % steps), or -1 when unknown or out of range (the engine sometimes reports e.g. 22)
+        // The engine passes the controller's battery byte on undecoded. Space Station splits it: low nibble =
+        // level 0-10 (shown as "level/10"), high nibble = charge state (1 charging, 2 full). 0x15 = 5/10, charging.
+        public long BatteryLevel { get { return BatteryByte < 0 ? -1 : BatteryByte & 0x0F; } }
+        public long ChargeState { get { return Charging > 0 ? Charging : BatteryByte < 0 ? 0 : (BatteryByte >> 4) & 0x0F; } }
+        public bool IsCharging { get { return ChargeState == 1; } }
+        public bool IsFull { get { return ChargeState == 2; } }
+        // battery in percent (10 % steps), or -1 when unknown
         public long BatteryPercent { get { return BatteryLevel >= 0 && BatteryLevel <= 10 ? BatteryLevel * 10 : -1; } }
 
         public static XHapticsStatus Parse(Dictionary<string, object> st)
@@ -54,7 +61,7 @@ namespace FlydigiHapticsGuard
                 HidConnected   = EngineClient.Bool(st, "hid.connected"),
                 HidOpened      = EngineClient.Bool(st, "hid.opened"),
                 HidPaused      = EngineClient.Bool(st, "hid.paused"),
-                BatteryLevel   = EngineClient.Long(st, "hid.controllerDeviceInfo.batteryLevel"),
+                BatteryByte    = EngineClient.Long(st, "hid.controllerDeviceInfo.batteryLevel"),
                 Charging       = EngineClient.Long(st, "hid.controllerDeviceInfo.chargingStatus"),
                 ConnectionMode = EngineClient.Long(st, "hid.controllerDeviceInfo.connectionMode"),
                 WriteFailures  = EngineClient.Long(st, "hid.writeFailures"),

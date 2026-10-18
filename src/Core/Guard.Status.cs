@@ -125,7 +125,8 @@ namespace FlydigiHapticsGuard
             if (!s.HidConnected) return "not connected (off, out of range, or taken off the cable/dock): press Home";
             string text = "connected";
             if (s.BatteryPercent >= 0) text += ", battery " + s.BatteryPercent + "%";
-            if (s.Charging > 0) text += ", charging";
+            if (s.IsCharging) text += ", charging";
+            else if (s.IsFull) text += ", fully charged";
             if (s.HidPaused) text += ", paused";
             bool newWriteFailures = lastWriteFailures >= 0 && s.WriteFailures > lastWriteFailures;
             if (newWriteFailures || s.HidError.Length > 0) text += ", output errors";
@@ -178,7 +179,7 @@ namespace FlydigiHapticsGuard
         void CheckLowBattery(XHapticsStatus s)
         {
             long percent = s.BatteryPercent;
-            if (!s.HidConnected || Settings.LowBatteryPercent <= 0 || percent < 0) return;
+            if (!s.HidConnected || Settings.LowBatteryPercent <= 0 || percent < 0 || s.IsCharging || s.IsFull) return;
             if (percent <= Settings.LowBatteryPercent && !lowBatteryNotified)
             {
                 lowBatteryNotified = true;
@@ -193,9 +194,9 @@ namespace FlydigiHapticsGuard
         // linked, so "usb" cannot tell cable/dock from wireless; it is only logged for diagnosis.
         void LogControllerChange(XHapticsStatus s)
         {
-            string line = string.Format("connected={0} opened={1} paused={2} battery={3}/10 charging={4} mode={5} usb={6} asleep={7} writeFailures={8} error='{9}'",
-                                        s.HidConnected, s.HidOpened, s.HidPaused, s.BatteryLevel, s.Charging, s.ConnectionMode,
-                                        UsbDevices.IsPresent(controllerUsbId), ControllerAsleep, s.WriteFailures, s.HidError);
+            string line = string.Format("connected={0} opened={1} paused={2} battery={3}/10 charge={4} (raw {10}) mode={5} usb={6} asleep={7} writeFailures={8} error='{9}'",
+                                        s.HidConnected, s.HidOpened, s.HidPaused, s.BatteryLevel, s.ChargeState, s.ConnectionMode,
+                                        UsbDevices.IsPresent(controllerUsbId), ControllerAsleep, s.WriteFailures, s.HidError, s.BatteryByte);
             if (line == lastControllerLine) return;
             lastControllerLine = line;
             Log.Write("controller: " + line);
