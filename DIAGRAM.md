@@ -74,10 +74,10 @@ flowchart TD
     N --> EX{"engine stopped and the output device<br/>held by an exclusive / ASIO player?"}
     EX -- yes --> HOLD["wait, probe every 2 s;<br/>re-arm once when it is released"] --> W
     EX -- no --> D{scheduled re-arm due?}
-    D -- yes --> SK{"controller off, Space Station holds it,<br/>engine recovered by itself (reconnect),<br/>or engine hears the new device (device change)?"}
+    D -- yes --> SK{"controller off, Space Station holds it,<br/>a native-haptics game runs,<br/>engine recovered by itself (reconnect),<br/>or engine hears the new device (device change)?"}
     SK -- yes --> SKIP["skip, log why"] --> W
     SK -- no --> KICK
-    D -- no --> R1{"capture/output stopped or error for 4 s,<br/>not held by Space Station or bouncing back to Idle,<br/>no re-arm in the last 10 s?"}
+    D -- no --> R1{"capture/output stopped or error for 4 s,<br/>not held by Space Station or a native-haptics game,<br/>not bouncing back to Idle,<br/>no re-arm in the last 10 s?"}
     R1 -- yes --> KICK
     R1 -- no --> R2{"controller awake, Mix capture, audio playing:<br/>capture frozen or engine hears only silence?"}
     R2 -- yes --> KICK

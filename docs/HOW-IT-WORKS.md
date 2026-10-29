@@ -54,7 +54,10 @@ X-Haptics is re-armed when:
 
 It never fights the Space Station page: while that page is open and holds the controller, the engine
 pauses X-Haptics on purpose (session Idle, status WebSocket connected) and the guard leaves it alone.
-Re-arms that the engine undoes straight away are retried at most `maxIdleBounces` times.
+The same goes for games that drive the controller's haptics themselves (native support, e.g. *Phantom
+Blade Zero*): the engine's game list marks them native-only and the engine stays Idle while one runs, so
+the guard does not re-arm then. Re-arms that the engine undoes straight away are retried at most
+`maxIdleBounces` times.
 
 Audio-level checks and child-process scanning are skipped while the controller is not connected or its
 haptics are asleep.

@@ -25,5 +25,9 @@ namespace FlydigiHapticsGuard
 
         // the profile used when no game/app profile is running (captures the whole mix)
         public const string GlobalScope = "global";
+
+        // a game that drives the controller's haptics itself (e.g. Phantom Blade Zero): the engine stays Idle
+        // while it runs and has nothing to switch on
+        public const string NativeBackend = "native";
     }
 }

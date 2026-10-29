@@ -54,6 +54,8 @@ namespace FlydigiHapticsGuard
             if (!autoEnabled) return "X-Haptics off";
             if (exclusiveHold) return "audio device in exclusive use by another app (exclusive/ASIO player): haptics resume when it is released";
             if (WebUiAttached()) return "paused (Space Station page is open)";
+            string native = nativeGame;
+            if (native != null) return "idle: " + native + " drives the haptics itself (native support)";
             return "X-Haptics idle";
         }
 

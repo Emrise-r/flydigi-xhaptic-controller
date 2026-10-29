@@ -212,8 +212,8 @@ namespace FlydigiHapticsGuard.Tests
         static void Parses_the_games_list()
         {
             var root = EngineClient.Obj(new JavaScriptSerializer().DeserializeObject(Sandbox.Json(@"{ 'games': [
-                { 'gameId': 'bh3', 'displayName': 'Honkai Impact 3rd', 'processNames': ['BH3.exe', ' ', 'bh3launcher'] },
-                { 'gameId': 'x' },
+                { 'gameId': 'bh3', 'displayName': 'Honkai Impact 3rd', 'processNames': ['BH3.exe', ' ', 'bh3launcher'], 'supportedBackends': ['realtime-audio'] },
+                { 'gameId': 'x', 'supportedBackends': ['native'] },
                 'junk'
             ] }")));
             var games = XHapticsGame.ParseList(EngineClient.At(root, "games"));
@@ -223,6 +223,8 @@ namespace FlydigiHapticsGuard.Tests
             Assert.SequenceEqual(new[] { "BH3", "bh3launcher" }, games[0].ProcessNames, "names without .exe and blanks");
             Assert.Null(games[1].Name, "no display name");
             Assert.Equal(0, games[1].ProcessNames.Count, "no process names");
+            Assert.False(games[0].NativeOnly, "X-Haptics game");
+            Assert.True(games[1].NativeOnly, "native haptics game");
             Assert.Null(XHapticsGame.ParseList(null), "missing list");
         }
     }

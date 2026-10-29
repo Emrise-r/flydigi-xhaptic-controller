@@ -68,6 +68,7 @@ namespace FlydigiHapticsGuard
             p.Awake = p.St.HidConnected && !ControllerAsleep;
             p.SinceKick = (p.Now - lastKickAt).TotalSeconds;
             p.WebAttached = WebUiAttached();
+            p.NativeGame = NativeGameRunning(p);
             return p;
         }
 
@@ -97,6 +98,7 @@ namespace FlydigiHapticsGuard
             bool healthy = st.Running && st.CaptureRunning && st.OutputRunning && !st.HasError && st.HidOpened;
             if (!st.HidConnected) Log.Write("skip re-arm (" + reason + "): controller not connected");
             else if (p.Idle && p.WebAttached) Log.Write("skip re-arm (" + reason + "): Space Station page is holding the controller");
+            else if (p.Idle && p.NativeGame != null) Log.Write("skip re-arm (" + reason + "): " + p.NativeGame + " drives the haptics itself");
             else if (healthy && reason == ReasonReconnect) Log.Write("skip re-arm (" + reason + "): the engine already recovered on its own");
             else if (reason == ReasonDeviceChanged && EngineFollowsDevice(p)) Log.Write("skip re-arm (" + reason + "): the engine already follows the new device");
             else { Kick(reason, false); return true; }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace FlydigiHapticsGuard
 {
@@ -8,6 +9,13 @@ namespace FlydigiHapticsGuard
     {
         public string Id, Name;
         public readonly List<string> ProcessNames = new List<string>();   // without ".exe"
+        public readonly List<string> Backends = new List<string>();       // "supportedBackends"
+
+        // only native haptics: the game drives the controller itself and X-Haptics stays idle
+        public bool NativeOnly
+        {
+            get { return Backends.Count > 0 && Backends.All(b => b == EngineApi.NativeBackend); }
+        }
 
         // The "games" array of the list, or null when it is missing.
         public static List<XHapticsGame> ParseList(object games)
@@ -27,6 +35,9 @@ namespace FlydigiHapticsGuard
                         string name = Settings.NormalizeProcessName(Convert.ToString(n));
                         if (name.Length > 0) game.ProcessNames.Add(name);
                     }
+                var backends = EngineClient.At(g, "supportedBackends") as object[];
+                if (backends != null)
+                    game.Backends.AddRange(backends.Select(b => Convert.ToString(b)).Where(b => !string.IsNullOrEmpty(b)));
                 list.Add(game);
             }
             return list;

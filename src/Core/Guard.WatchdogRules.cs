@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace FlydigiHapticsGuard
 {
@@ -15,6 +17,7 @@ namespace FlydigiHapticsGuard
             public string DeviceId;      // Windows default playback device
             public float SystemPeak;     // its peak meter
             public bool WebAttached;     // the Space Station page is connected to the engine
+            public string NativeGame;    // a running game that drives the haptics itself (only looked up while idle)
             public bool Idle;            // session Idle, or capture and output both stopped
             public bool Awake;           // controller connected and haptics not asleep: audio levels mean something
             public double SinceKick;     // seconds since the last re-arm or source switch
@@ -27,6 +30,11 @@ namespace FlydigiHapticsGuard
         // set while the default output device is held by an exclusive-mode / ASIO player
         bool exclusiveHold;
         DateTime nextExclusiveProbe = DateTime.MinValue;
+
+        // a game with native haptics support (e.g. Phantom Blade Zero) is running: the engine idles on purpose
+        const int NativeGameCheckSec = 5;
+        volatile string nativeGame;
+        DateTime nextNativeCheck = DateTime.MinValue;
 
         // 1) controller (re)connected -> re-arm after reconnectDelaySec, unless the engine recovers by itself
         void ScheduleOnReconnect(Poll p)
@@ -55,7 +63,7 @@ namespace FlydigiHapticsGuard
             if (lastKickWasIdle && p.SinceKick > 15) lastKickWasIdle = false;
             if (lastKickWasIdle && p.SinceKick >= 4 && p.Idle) { idleBounces++; lastKickWasIdle = false; }
 
-            bool idleOnPurpose = p.Idle && (p.WebAttached || idleBounces >= Settings.MaxIdleBounces);
+            bool idleOnPurpose = p.Idle && (p.WebAttached || p.NativeGame != null || idleBounces >= Settings.MaxIdleBounces);
             bool broken = st.HidConnected && !st.HidPaused && !st.PausedSession &&
                           (st.HasError || ((!st.CaptureRunning || !st.OutputRunning) && !idleOnPurpose));
             if (!broken) brokenSince = DateTime.MaxValue;
@@ -98,8 +106,32 @@ namespace FlydigiHapticsGuard
             if (!p.Idle) { loggedIdleHold = false; return; }
             if (p.Broken || !p.St.HidConnected || loggedIdleHold) return;
             loggedIdleHold = true;
-            Log.Write(p.WebAttached ? "engine idle while Space Station page is attached -> not interfering"
-                                    : "engine keeps going idle right after re-arm -> waiting for it to resume on its own");
+            Log.Write(p.NativeGame != null ? "engine idle while " + p.NativeGame + " runs (native haptics: the game drives the controller itself) -> not interfering"
+                    : p.WebAttached ? "engine idle while Space Station page is attached -> not interfering"
+                    : "engine keeps going idle right after re-arm -> waiting for it to resume on its own");
+        }
+
+        // The engine's game list marks games that drive the controller themselves as native-only; while one
+        // runs the engine stays Idle and a re-arm only bounces back. Looked up while idle, every few seconds.
+        string NativeGameRunning(Poll p)
+        {
+            if (!p.Idle) { nativeGame = null; nextNativeCheck = DateTime.MinValue; return null; }
+            if (p.Now < nextNativeCheck) return nativeGame;
+            nextNativeCheck = p.Now.AddSeconds(NativeGameCheckSec);
+            string found = NativeGame(LoadGames(false), RunningProcessNames());
+            if (found != nativeGame && found != null) Log.Write("native haptics game running: " + found);
+            nativeGame = found;
+            return found;
+        }
+
+        internal static string NativeGame(List<XHapticsGame> games, HashSet<string> runningProcesses)
+        {
+            if (games == null) return null;
+            return games.Where(g => g.NativeOnly)
+                        .Select(g => new { Game = g, Process = g.ProcessNames.FirstOrDefault(runningProcesses.Contains) })
+                        .Where(m => m.Process != null)
+                        .Select(m => m.Game.Name ?? m.Process)
+                        .FirstOrDefault();
         }
 
         // 3) as a re-arm reason: broken for brokenPersistSec, and not judged right after a re-arm (the engine

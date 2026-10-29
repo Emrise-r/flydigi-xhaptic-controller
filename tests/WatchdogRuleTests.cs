@@ -86,6 +86,28 @@ namespace FlydigiHapticsGuard.Tests
         }
 
         [Test]
+        static void Idle_engine_while_a_native_haptics_game_runs_is_not_broken()
+        {
+            var root = EngineClient.Obj(new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(Sandbox.Json(@"{ 'games': [
+                { 'gameId': '3263', 'displayName': 'Zenless Zone Zero', 'processNames': ['ZenlessZoneZero'], 'supportedBackends': ['realtime-audio'] },
+                { 'gameId': '3309', 'displayName': 'Phantom Blade Zero', 'processNames': ['pbz'], 'supportedBackends': ['native'] }
+            ] }")));
+            var games = XHapticsGame.ParseList(EngineClient.At(root, "games"));
+            var running = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PBZ", "ZenlessZoneZero" };
+            Assert.Equal("Phantom Blade Zero", Guard.NativeGame(games, running));
+            running.Remove("PBZ");
+            Assert.Null(Guard.NativeGame(games, running), "only an X-Haptics game runs");
+            Assert.Null(Guard.NativeGame(null, running), "no game list");
+
+            var g = NewGuard();
+            var st = Healthy(); st.SessionState = "Idle"; st.CaptureRunning = false; st.OutputRunning = false;
+            var p = At(0, st); p.NativeGame = "Phantom Blade Zero";
+            Assert.False(g.EngineBroken(p), "native game");
+            p.NativeGame = null;
+            Assert.True(g.EngineBroken(p), "no native game");
+        }
+
+        [Test]
         static void Frozen_capture_needs_audio_and_an_awake_controller()
         {
             var g = NewGuard();
