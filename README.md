@@ -13,13 +13,13 @@ and lets you control X-Haptics from the controller's back buttons:
 ![Tray menu with the Audio sources submenu](docs/images/tray-menu.png)
 
 **Download:** [latest release](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/latest)
-([v1.0.8](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.8)). Get
-`HapticsGuard-v1.0.8.zip`, extract it anywhere and run `HapticsGuard.exe`.
+([v1.0.9](https://github.com/Emrise-r/flydigi-xhaptic-controller/releases/tag/v1.0.9)). Get
+`HapticsGuard-v1.0.9.zip`, extract it anywhere and run `HapticsGuard.exe`.
 
 > **Requires the Flydigi xHaptics Engine.** This tool only drives the engine's local API; it does not
 > make the controller vibrate by itself. Install the engine with Flydigi Space Station first.
 >
-> **Tested on:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition, xHaptics Engine 5.0.2.4 and 5.0.2.6, Windows 11.
+> **Tested on:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition, xHaptics Engine 5.0.2.4, 5.0.2.6 and 5.0.2.8, Windows 11.
 > Other Flydigi controllers that use the same engine may work but are untested.
 >
 > **Engine version:** v1.0.6 and later are made for xHaptics Engine **5.0.2.4 or newer** (the engine changed
@@ -64,9 +64,9 @@ To build it yourself: run `build.cmd` (uses the C# compiler that ships with Wind
 [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 **Antivirus:** the exe is small, unsigned, registers global hotkeys and lists processes, so a few engines
-flag it with generic machine-learning verdicts (v1.0.8: Defender clean,
-[VirusTotal](https://www.virustotal.com/gui/file/e60e931fdcad12901b2e623c1bdaad3bf47b25b62702bf14e5a38c122bff64a4)
-4/68, major engines clean). Build it from source if you prefer.
+flag it with generic machine-learning verdicts (v1.0.9: Defender clean,
+[VirusTotal](https://www.virustotal.com/gui/file/7f2ece2aa144168140b887b1221ffd5ee667ae6df47c17ca21b66fceebabe61b)
+3/70, major engines clean). Build it from source if you prefer.
 
 ---
 
@@ -185,6 +185,7 @@ Details: [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
 |---|---|
 | `config.json error: …` | Invalid JSON. Fix it and *Reload config*, or *Reset config to defaults...*. |
 | `engine idle while Space Station page is attached` | The Space Station page holds the controller. Close it. |
+| `engine idle while … runs (native haptics …)` | The game drives the controller's haptics itself (e.g. *Phantom Blade Zero*); X-Haptics comes back when it exits. |
 | `engine unreachable` | The engine is not running or still starting; the guard waits for it. A hotkey press tells you whether it is not installed, not running or not responding. |
 | `hotkey warning: … already used by another app` | Pick another combination in `config.json` and remap the button. |
 | No vibration but the source looks right | Haptics asleep: press any controller button. Check the battery. |

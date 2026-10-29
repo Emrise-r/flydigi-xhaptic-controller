@@ -6,7 +6,7 @@ is covered by the unit tests: run `test.cmd` (see [DEVELOPMENT.md](DEVELOPMENT.m
 manual case can be checked from the tray menu status lines and `data\guard.log` (tray › *View log*).
 
 **Test setup:** Flydigi APEX 6 Pro *Phantom Blade Zero* edition with its charging dock, xHaptics Engine
-5.0.2.4 and 5.0.2.6, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep
+5.0.2.4, 5.0.2.6 and 5.0.2.8, Windows 11. Tip: set *Real-time audio auto sleep* to 20 s in Space Station to test the sleep
 cases quickly (the allowed range is 5–1800 s, default 900), and put it back afterwards.
 
 Start the guard **from Explorer**, and close the Space Station page before each test: while that page
@@ -31,6 +31,7 @@ is open it holds the controller and X-Haptics is paused.
 |---|---|---|
 | 2.1 | Change the Windows default output device | `default output changed`, then about 2 s later `RE-ARMED … default output device changed`, or, with engine 5.0.2.4 while audio plays, `skip re-arm (default output device changed): the engine already follows the new device` |
 | 2.2 | Open the Space Station mapping page | `engine idle while Space Station page is attached -> not interfering`; no re-arm loop |
+| 2.2b | Start a game with native haptics support (*Phantom Blade Zero*), then exit it | `native haptics game running: Phantom Blade Zero`, `engine idle while Phantom Blade Zero runs (native haptics …) -> not interfering`, `Source: idle: Phantom Blade Zero drives the haptics itself`; no re-arm. After exiting, the engine is back on global by itself |
 | 2.3 | Re-arm once (tray) with the page open | Balloon *The Space Station page is holding the controller…* |
 | 2.4 | Select a game as the source, then close the game | `game exited but the engine is still bound to its process`, re-arm, `Source:` back to Mix |
 | 2.5 | Play in TIDAL with *Exclusive Mode* on (or foobar2000 *WASAPI (exclusive)* / *ASIO*) to the default DAC | One balloon *Another app is using the audio device in exclusive mode…*; log `output device is in exclusive use by another app (…)`; `Source: audio device in exclusive use…`; no re-arm attempts |
@@ -119,6 +120,11 @@ Measured with the guard closed:
   binds a catalog game with an enabled profile by itself (Zenless Zone Zero).
 - The engine process now has its own audio session that mirrors what it captures.
 - `runState` / `foreground` in its games file are not live (BH3 stayed `running` after exiting).
+- Engine 5.0.2.8: games with native haptics support (*Phantom Blade Zero*, `supportedBackends: ["native"]`
+  in the game list, no on/off switch in Space Station) make the engine stay Idle while they run, with no
+  error and `hid.owner` still `engine`; a re-arm runs for a few seconds and drops back to Idle. When the
+  game exits the engine returns to global by itself. Left alone ~20 min it did not stop on its own (its
+  *auto sleep* only closes the grip gate).
 
 PID reuse: Windows keeps a process's parent PID after the parent exits and later gives that PID to a new
 process. Chrome, started at sign-in by a launcher that had exited, showed up as a "child" of BH3 and the
@@ -147,6 +153,7 @@ Found on earlier engines; the guard is still built around them:
 | v1.0.6 (engine 5.0.2.4 support) | clean | [5/68](https://www.virustotal.com/gui/file/691f900613e25ce12ea5777c1663f4c31b1b7202264b0dc0c855f4f5096ec1b9): the same five as v1.0.4 (APEX, Bkav, Elastic, MaxSecure, Trapmine); major engines clean |
 | v1.0.7 (battery byte decoding) | clean | [4/70](https://www.virustotal.com/gui/file/b26317c1e044782f28e684cd83bdf22e44df55932c1f2338fa26cc605f685f05): APEX, Bkav, Elastic, Trapmine (generic ML); major engines clean |
 | v1.0.8 (own icon, switch follows the engine) | clean | [4/68](https://www.virustotal.com/gui/file/e60e931fdcad12901b2e623c1bdaad3bf47b25b62702bf14e5a38c122bff64a4): APEX, Elastic, MaxSecure, Trapmine (generic ML); major engines clean |
+| v1.0.9 (native haptics games) | clean | [3/70](https://www.virustotal.com/gui/file/7f2ece2aa144168140b887b1221ffd5ee667ae6df47c17ca21b66fceebabe61b): APEX, MaxSecure, Trapmine (generic ML); major engines clean |
 
 No engine names a malware family; the hits are generic ML/heuristic verdicts typical for small unsigned
 tools that register global hotkeys and enumerate processes.
